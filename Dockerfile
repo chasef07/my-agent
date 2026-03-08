@@ -8,9 +8,9 @@ RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/* \
 
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci
 COPY . .
-RUN npm run build
+RUN npm run build && npm prune --omit=dev
 
 EXPOSE 3000
 CMD ["npm", "start"]
