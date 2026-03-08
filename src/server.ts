@@ -19,6 +19,17 @@ const red = (s: string) => `\x1b[31m${s}\x1b[0m`;
 
 const activeCalls = new Map<string, CallSession>();
 
+async function runWarmScripts() {
+  const warmScripts = await glob("workspace/skills/*/warm.sh");
+  if (!warmScripts.length) return { scripts: 0, failed: 0 };
+  const results = await Promise.allSettled(
+    warmScripts.map((script) => execFileAsync(script)),
+  );
+  const failed = results.filter((r) => r.status === "rejected").length;
+  if (failed) console.log(dim(`[pre-call] ${failed}/${warmScripts.length} warm scripts failed`));
+  return { scripts: warmScripts.length, failed };
+}
+
 export async function startServer(options: {
   config: TelephonyConfig;
   agentOptions: AgentOptions;
@@ -35,6 +46,9 @@ export async function startServer(options: {
   server.post("/voice", async (request, reply) => {
     const host = request.headers.host;
     const wsProtocol = host?.includes("localhost") ? "ws" : "wss";
+
+    // Fire-and-forget: warm skills while Twilio processes the TwiML
+    runWarmScripts().catch(() => {});
 
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
@@ -88,15 +102,10 @@ export async function startServer(options: {
     });
   });
 
-  // --- POST /pre-call --- skill warming webhook
+  // --- POST /pre-call --- skill warming webhook (also called automatically from /voice)
   server.post("/pre-call", async () => {
-    const warmScripts = await glob("workspace/skills/*/warm.sh");
-    const results = await Promise.allSettled(
-      warmScripts.map((script) => execFileAsync(script)),
-    );
-    const failed = results.filter((r) => r.status === "rejected").length;
-    if (failed) console.log(dim(`[pre-call] ${failed}/${warmScripts.length} warm scripts failed`));
-    return { status: "ok", scripts: warmScripts.length, failed };
+    const result = await runWarmScripts();
+    return { status: "ok", ...result };
   });
 
   // --- Health check ---
