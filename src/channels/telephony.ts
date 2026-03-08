@@ -74,6 +74,14 @@ interface ActiveCall {
 
 const activeCalls = new Map<string, ActiveCall>();
 
+// Filler phrases spoken during tool calls to prevent dead air
+const TOOL_FILLERS = [
+  "one moment.",
+  "let me check on that.",
+  "sure, one second.",
+  "let me pull that up.",
+];
+
 // Filler words that shouldn't trigger the agent or barge-in
 const FILLERS = new Set(["um", "uh", "uhh", "umm", "hmm", "hm", "ah", "oh", "er", "like", "so", "well", "actually"]);
 
@@ -104,7 +112,6 @@ export async function startTelephonyServer(options: TelephonyServerOptions) {
 
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="alice">Connected. Go ahead.</Say>
   <Connect>
     <Stream url="${wsProtocol}://${host}/media-stream" />
   </Connect>
@@ -260,6 +267,20 @@ async function initializeCall(
   }
 
   console.log(dim(`  [init] Ready in ${ms(initStart)}`));
+
+  // Greet the caller immediately in the agent's voice
+  const greeting = createTtsSession(
+    {
+      apiKey: config.elevenlabs.apiKey,
+      voiceId: config.elevenlabs.voiceId,
+      modelId: config.elevenlabs.modelId,
+    },
+    (base64Audio) => sendAudioToTwilio(call.socket, call.streamSid, base64Audio),
+    () => console.log(dim("  [greeting] Done")),
+  );
+  call.tts = greeting;
+  greeting.pushToken("Welcome to Abita Eye Care, how can I help you today?");
+  greeting.flush();
 }
 
 // Handle a complete utterance from the caller
@@ -277,25 +298,20 @@ async function handleCallerUtterance(
     clearTwilioAudio(call.socket, call.streamSid);
   }
 
-  while (call.processing) {
-    await new Promise((r) => setTimeout(r, 100));
-  }
-  call.processing = true;
-  call.turnCount++;
-  const turn = call.turnCount;
+  const ttsConfig = {
+    apiKey: config.elevenlabs.apiKey,
+    voiceId: config.elevenlabs.voiceId,
+    modelId: config.elevenlabs.modelId,
+  };
 
-  const llmStart = Date.now();
+  // Pre-warm TTS WebSocket — connects while we wait for the processing lock
+  let llmStart = Date.now();
   let firstTokenAt = 0;
   let firstTtsAt = 0;
-  let agentText = "";
+  let turn = 0;
 
-  // Create TTS session
   const tts = createTtsSession(
-    {
-      apiKey: config.elevenlabs.apiKey,
-      voiceId: config.elevenlabs.voiceId,
-      modelId: config.elevenlabs.modelId,
-    },
+    ttsConfig,
     (base64Audio) => {
       if (!firstTtsAt) {
         firstTtsAt = Date.now();
@@ -310,6 +326,18 @@ async function handleCallerUtterance(
   );
   call.tts = tts;
 
+  while (call.processing) {
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  call.processing = true;
+  call.turnCount++;
+  turn = call.turnCount;
+
+  // Reset timing after lock acquired
+  llmStart = Date.now();
+  let agentText = "";
+  let fillerSent = false;
+
   // Subscribe to agent streaming
   const unsubscribe = call.agentSession.subscribe((event) => {
     if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
@@ -319,6 +347,14 @@ async function handleCallerUtterance(
       }
       agentText += event.assistantMessageEvent.delta;
       tts.pushToken(event.assistantMessageEvent.delta);
+    }
+
+    // Inject filler audio when a tool call starts and the LLM hasn't said anything yet
+    if (event.type === "tool_execution_start" && !fillerSent && !agentText.trim()) {
+      fillerSent = true;
+      const filler = TOOL_FILLERS[Math.floor(Math.random() * TOOL_FILLERS.length)];
+      console.log(dim(`  [filler] "${filler}"`));
+      tts.pushToken(filler);
     }
   });
 
