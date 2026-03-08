@@ -17,14 +17,6 @@ function ms(start: number): string {
   return `${(Date.now() - start)}ms`;
 }
 
-// Filler phrases spoken during tool calls to prevent dead air
-const TOOL_FILLERS = [
-  "one moment.",
-  "let me check on that.",
-  "sure, one second.",
-  "let me pull that up.",
-];
-
 // Filler words that shouldn't trigger the agent or barge-in
 const FILLERS = new Set(["um", "uh", "uhh", "umm", "hmm", "hm", "ah", "oh", "er", "like", "so", "well", "actually"]);
 
@@ -133,7 +125,6 @@ export async function processUtterance(
   // Reset timing after lock acquired
   llmStart = Date.now();
   let agentText = "";
-  let fillerSent = false;
 
   const unsubscribe = session.agentSession.subscribe((event) => {
     if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
@@ -144,22 +135,23 @@ export async function processUtterance(
       agentText += event.assistantMessageEvent.delta;
       tts.pushToken(event.assistantMessageEvent.delta);
     }
-
-    if (event.type === "tool_execution_start" && !fillerSent && !agentText.trim()) {
-      fillerSent = true;
-      const filler = TOOL_FILLERS[Math.floor(Math.random() * TOOL_FILLERS.length)];
-      console.log(dim(`  [filler] "${filler}"`));
-      tts.pushToken(filler);
-    }
   });
 
   try {
-    await session.agentSession.prompt(text);
+    const TURN_TIMEOUT = 30_000;
+    await Promise.race([
+      session.agentSession.prompt(text),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Turn timed out after 30s")), TURN_TIMEOUT),
+      ),
+    ]);
     tts.flush();
     const preview = agentText.length > 120 ? agentText.slice(0, 120) + "..." : agentText;
     console.log(cyan("  [agent]") + ` "${preview.replace(/\n/g, " ")}"`);
   } catch (err) {
     console.error(red("  [agent error]") + ` ${err instanceof Error ? err.message : err}`);
+    tts.pushToken("sorry, I'm having trouble right now. could you say that again?");
+    tts.flush();
   } finally {
     unsubscribe();
     session.processing = false;

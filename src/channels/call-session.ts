@@ -56,7 +56,8 @@ export class CallSession {
         }
         if (event.type === "tool_execution_end") {
           const status = event.isError ? red("✗") : green("✓");
-          const result = String(event.result ?? "");
+          const raw = event.result ?? "";
+          const result = typeof raw === "string" ? raw : JSON.stringify(raw);
           const preview = result.length > 200 ? result.slice(0, 200) + "..." : result;
           console.log(yellow("  [tool]") + ` ${event.toolName} ${status} ${dim(preview)}`);
         }

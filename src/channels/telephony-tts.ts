@@ -106,6 +106,7 @@ export function createTtsSession(
     if (!cancelled) {
       console.error("[tts] WebSocket error:", err.message);
     }
+    fireDone();
   });
 
   ws.on("close", () => {
