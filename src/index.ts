@@ -26,60 +26,56 @@ if (config.telephony?.enabled) {
 
 console.log(`my-agent v0.1.0`);
 console.log(`Model: ${model.provider}/${model.id}`);
-console.log(`Type your message. Ctrl+C to exit.\n`);
 
-// 2. Start the agent session — this connects to the LLM and sets up tools
-const session = await startAgent({
-  model,
-  apiKey,
-  cwd: process.cwd(),
-  resumeSession: false,
-});
+// In telephony-only mode (no TTY), just keep the process alive for the server
+if (!process.stdin.isTTY && config.telephony?.enabled) {
+  console.log("Running in telephony-only mode (no TTY)");
+} else {
+  console.log(`Type your message. Ctrl+C to exit.\n`);
 
-// 3. Attach debug logger — shows tool calls and latency in stderr
-// Remove this line to disable debug logging in production
-attachLogger(session);
+  // Start the CLI agent session
+  const session = await startAgent({
+    model,
+    apiKey,
+    cwd: process.cwd(),
+    resumeSession: false,
+  });
 
+  attachLogger(session);
 
-// 4. Subscribe to streaming events — print each text chunk as it arrives
-// The agent streams tokens one by one. We listen for "text_delta" events
-// and write them directly to stdout for a real-time typing effect.
-session.subscribe((event) => {
-  if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
-    process.stdout.write(event.assistantMessageEvent.delta);
-  }
-});
+  session.subscribe((event) => {
+    if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
+      process.stdout.write(event.assistantMessageEvent.delta);
+    }
+  });
 
-// 4. Set up readline — simple terminal input loop
-const rl = createInterface({
-  input: process.stdin,
-  output: process.stdout,
-  prompt: "\n> ",
-});
-
-rl.prompt();
-
-// Each line the user types gets sent to the agent as a prompt.
-// session.prompt() sends the message to the LLM and waits for the
-// full response (streaming happens via the subscriber above).
-rl.on("line", async (line) => {
-  const input = line.trim();
-  if (!input) {
-    rl.prompt();
-    return;
-  }
-
-  try {
-    await session.prompt(input);
-    console.log(); // newline after the streamed response
-  } catch (err) {
-    console.error("Error:", err instanceof Error ? err.message : err);
-  }
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    prompt: "\n> ",
+  });
 
   rl.prompt();
-});
 
-rl.on("close", () => {
-  console.log("\nGoodbye.");
-  process.exit(0);
-});
+  rl.on("line", async (line) => {
+    const input = line.trim();
+    if (!input) {
+      rl.prompt();
+      return;
+    }
+
+    try {
+      await session.prompt(input);
+      console.log();
+    } catch (err) {
+      console.error("Error:", err instanceof Error ? err.message : err);
+    }
+
+    rl.prompt();
+  });
+
+  rl.on("close", () => {
+    console.log("\nGoodbye.");
+    process.exit(0);
+  });
+}
