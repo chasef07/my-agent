@@ -7,10 +7,11 @@ description: AdvancedMD CLI for patient verification, patient creation, and appo
 
 Use `amd` for AdvancedMD patient and scheduling operations. All output is JSON to stdout.
 
+IMPORTANT: `amd` is installed at `/usr/local/bin/amd`. Run commands as `amd <command>` (NOT `./amd`). Do NOT cd into the skills directory. Auth token is pre-cached at server startup.
+
 Setup
-- Set env vars: `ADVANCEDMD_USERNAME`, `ADVANCEDMD_PASSWORD`, `ADVANCEDMD_OFFICE_KEY`, `ADVANCEDMD_APP_NAME`
-- Authenticate first: `amd auth` (caches token to `~/.amd/token.json`, valid 23 hours)
-- Re-run `amd auth` if any command returns exit code 2 (token expired)
+- Env vars are pre-configured: `ADVANCEDMD_USERNAME`, `ADVANCEDMD_PASSWORD`, `ADVANCEDMD_OFFICE_KEY`, `ADVANCEDMD_APP_NAME`
+- Auth token is pre-cached. If any command returns exit code 2 (token expired), run `amd auth` to refresh.
 
 Commands
 

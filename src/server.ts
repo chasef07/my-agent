@@ -111,6 +111,10 @@ export async function startServer(options: {
   // --- Health check ---
   server.get("/health", async () => ({ status: "ok", activeCalls: activeCalls.size }));
 
+  // Run warm scripts once at startup (amd auth, etc.) so the token is cached
+  // before any calls come in. Per-call warming is redundant but harmless.
+  await runWarmScripts().catch(() => {});
+
   const port = config.port;
   await server.listen({ port, host: "0.0.0.0" });
 
