@@ -74,6 +74,14 @@ interface ActiveCall {
 
 const activeCalls = new Map<string, ActiveCall>();
 
+function ttsConfigFrom(config: TelephonyConfig) {
+  return {
+    apiKey: config.elevenlabs.apiKey,
+    voiceId: config.elevenlabs.voiceId,
+    modelId: config.elevenlabs.modelId,
+  };
+}
+
 // Filler phrases spoken during tool calls to prevent dead air
 const TOOL_FILLERS = [
   "one moment.",
@@ -269,18 +277,18 @@ async function initializeCall(
   console.log(dim(`  [init] Ready in ${ms(initStart)}`));
 
   // Greet the caller immediately in the agent's voice
-  const greeting = createTtsSession(
-    {
-      apiKey: config.elevenlabs.apiKey,
-      voiceId: config.elevenlabs.voiceId,
-      modelId: config.elevenlabs.modelId,
-    },
-    (base64Audio) => sendAudioToTwilio(call.socket, call.streamSid, base64Audio),
-    () => console.log(dim("  [greeting] Done")),
-  );
-  call.tts = greeting;
-  greeting.pushToken("Welcome to Abita Eye Care, how can I help you today?");
-  greeting.flush();
+  try {
+    const greeting = createTtsSession(
+      ttsConfigFrom(config),
+      (base64Audio) => sendAudioToTwilio(call.socket, call.streamSid, base64Audio),
+      () => console.log(dim("  [greeting] Done")),
+    );
+    call.tts = greeting;
+    greeting.pushToken("Welcome to Abita Eye Care, how can I help you today?");
+    greeting.flush();
+  } catch (err) {
+    console.error(red("[error]") + ` Greeting TTS failed:`, err);
+  }
 }
 
 // Handle a complete utterance from the caller
@@ -298,12 +306,6 @@ async function handleCallerUtterance(
     clearTwilioAudio(call.socket, call.streamSid);
   }
 
-  const ttsConfig = {
-    apiKey: config.elevenlabs.apiKey,
-    voiceId: config.elevenlabs.voiceId,
-    modelId: config.elevenlabs.modelId,
-  };
-
   // Pre-warm TTS WebSocket — connects while we wait for the processing lock
   let llmStart = Date.now();
   let firstTokenAt = 0;
@@ -311,7 +313,7 @@ async function handleCallerUtterance(
   let turn = 0;
 
   const tts = createTtsSession(
-    ttsConfig,
+    ttsConfigFrom(config),
     (base64Audio) => {
       if (!firstTtsAt) {
         firstTtsAt = Date.now();
