@@ -16,7 +16,6 @@
     "@mariozechner/pi-ai": "latest",
     "@mariozechner/pi-coding-agent": "latest",
     "fastify": "^5.8.2",
-    "langsmith": "^0.5.8",
     "twilio": "^5.12.2"
   },
   "devDependencies": {

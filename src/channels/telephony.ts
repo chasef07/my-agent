@@ -14,7 +14,7 @@ import type { TelephonyConfig } from "../config.js";
 import { createAsrSession, type AsrSession } from "./telephony-asr.js";
 import { createTtsSession, type TtsSession } from "./telephony-tts.js";
 import { startAgent, type AgentOptions } from "../agent.js";
-import { attachTracing } from "../tracing.js";
+
 import type { AgentSession } from "@mariozechner/pi-coding-agent";
 
 // --- Timing helpers ---
@@ -222,8 +222,6 @@ async function initializeCall(
   try {
     const session = await startAgent({ ...agentOptions, resumeSession: false });
     call.agentSession = session;
-    attachTracing(session, { channel: "telephony", callSid: call.callSid });
-
     // Attach tool call logging for this session
     session.subscribe((event) => {
       if (event.type === "tool_execution_start") {

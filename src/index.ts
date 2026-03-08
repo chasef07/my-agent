@@ -6,7 +6,7 @@ import { createInterface } from "readline";
 import { loadConfig, getApiKey, createModel } from "./config.js";
 import { startAgent } from "./agent.js";
 import { attachLogger } from "./logger.js"; // Remove this line to disable debug logging
-import { attachTracing } from "./tracing.js";
+
 import { startTelephonyServer } from "./channels/telephony.js";
 
 // 1. Load config.json and resolve the API key from the environment
@@ -39,7 +39,7 @@ const session = await startAgent({
 // 3. Attach debug logger — shows tool calls and latency in stderr
 // Remove this line to disable debug logging in production
 attachLogger(session);
-attachTracing(session, { channel: "cli" });
+
 
 // 4. Subscribe to streaming events — print each text chunk as it arrives
 // The agent streams tokens one by one. We listen for "text_delta" events
