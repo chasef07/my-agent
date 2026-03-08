@@ -1,0 +1,548 @@
+# My Agent — Visual Architecture Guide
+
+> A companion to BLUEPRINT.md — diagrams and flowcharts to understand the full system at a glance.
+
+---
+
+## 1. High-Level System Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                          MY AGENT                                   │
+│                                                                     │
+│  ┌───────────┐    ┌───────────┐    ┌───────────────────────────┐   │
+│  │    CLI    │    │ WhatsApp  │    │     Any Future Channel    │   │
+│  │  (stdin)  │    │ (Baileys) │    │    (Slack, Discord...)    │   │
+│  └─────┬─────┘    └─────┬─────┘    └────────────┬──────────────┘   │
+│        │                │                        │                  │
+│        └────────────────┼────────────────────────┘                  │
+│                         ▼                                           │
+│                 ┌───────────────┐                                   │
+│                 │    Router     │  ← Dispatches messages to the     │
+│                 │  (router.ts)  │    correct session                │
+│                 └───────┬───────┘                                   │
+│                         ▼                                           │
+│          ┌──────────────────────────────┐                           │
+│          │        AGENT CORE            │                           │
+│          │  ┌────────────────────────┐  │                           │
+│          │  │    Agent Loop          │  │                           │
+│          │  │  (pi-agent-core)       │  │                           │
+│          │  └───────────┬────────────┘  │                           │
+│          │              │               │                           │
+│          │  ┌───────────▼────────────┐  │                           │
+│          │  │   Dynamic Prompt       │  │                           │
+│          │  │   (prompt.ts)          │  │                           │
+│          │  └───────────┬────────────┘  │                           │
+│          │              │               │                           │
+│          │  ┌───────────▼────────────┐  │                           │
+│          │  │   LLM Provider         │  │                           │
+│          │  │   (pi-ai)              │──┼──→  Any LLM API          │
+│          │  └────────────────────────┘  │     (Anthropic, OpenAI,  │
+│          └──────────────────────────────┘      Google, Ollama...)   │
+│                         │                                           │
+│          ┌──────────────┼──────────────┐                            │
+│          ▼              ▼              ▼                             │
+│  ┌──────────────┐ ┌──────────┐ ┌──────────────┐                    │
+│  │  Coding      │ │  Memory  │ │  Skill       │                    │
+│  │  Tools       │ │  Tools   │ │  Tools       │                    │
+│  │  (pi-coding) │ │ (custom) │ │  (loaded)    │                    │
+│  └──────────────┘ └──────────┘ └──────────────┘                    │
+│                                                                     │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │                     EXTENSIONS                                │   │
+│  │  memory-flush  ·  context-pruning  ·  self-improve-guard     │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 2. The 7 Pillars
+
+```
+                        ┌─────────────────────┐
+                        │   7. SELF-IMPROVE    │
+                        │   Modify own code,   │
+                        │   tools, prompts     │
+                        └──────────┬──────────┘
+                                   │ sits on top of all others
+        ┌──────────┬───────────┬───┴───┬───────────┬──────────┐
+        ▼          ▼           ▼       ▼           ▼          ▼
+   ┌─────────┐┌─────────┐┌─────────┐┌─────────┐┌─────────┐┌─────────┐
+   │ 1. CLI  ││ 2. LONG ││ 3.PROMPT││4. SKILL ││5. MODEL ││6.WHATS- │
+   │ HARNESS ││  TERM   ││ASSEMBLY ││LOADING  ││PROVIDER ││  APP    │
+   │         ││ MEMORY  ││         ││         ││         ││ CHANNEL │
+   │ Terminal││         ││ Built   ││ Dirs w/ ││ Any LLM ││         │
+   │ agent   ││ MEMORY  ││ from    ││ instruc-││ any     ││ Per-chat│
+   │ reads,  ││ .md +   ││ work-   ││ tions + ││ provid- ││ sessions│
+   │ writes, ││ daily   ││ space   ││ optional││ er,     ││ isolated│
+   │ edits,  ││ logs    ││ files   ││ tools   ││ swap at ││ memory  │
+   │ runs    ││         ││         ││         ││ runtime ││         │
+   └─────────┘└─────────┘└─────────┘└─────────┘└─────────┘└─────────┘
+       │            │          │          │          │          │
+       └────────────┴──────────┴──────────┴──────────┴──────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │    pi-mono          │
+                    │  (Foundation Layer) │
+                    │  pi-ai · pi-agent   │
+                    │  pi-coding · pi-tui │
+                    └─────────────────────┘
+```
+
+---
+
+## 3. Agent Loop — What Happens Each Turn
+
+```
+   User types message          WhatsApp message arrives
+        │                              │
+        └──────────┐    ┌──────────────┘
+                   ▼    ▼
+            ┌──────────────┐
+        ┌──▶│  1. INTAKE    │  Receive message from any channel
+        │   └──────┬───────┘
+        │          ▼
+        │   ┌──────────────┐
+        │   │  2. ROUTE     │  Which session does this belong to?
+        │   │               │  (CLI = single session,
+        │   │               │   WhatsApp = per-chat session)
+        │   └──────┬───────┘
+        │          ▼
+        │   ┌──────────────┐
+        │   │  3. CONTEXT   │  Assemble the full context:
+        │   │               │  ┌─────────────────────────────┐
+        │   │               │  │ System prompt (from prompt.ts)│
+        │   │               │  │  ├─ AGENTS.md                │
+        │   │               │  │  ├─ SOUL.md                  │
+        │   │               │  │  ├─ USER.md                  │
+        │   │               │  │  ├─ IDENTITY.md              │
+        │   │               │  │  ├─ TOOLS.md                 │
+        │   │               │  │  ├─ MEMORY.md (truncated)    │
+        │   │               │  │  └─ Skills manifest          │
+        │   │               │  ├─ Conversation history        │
+        │   │               │  └─ Tool results from prior turns│
+        │   │               │  └─────────────────────────────┘
+        │   └──────┬───────┘
+        │          ▼
+        │   ┌──────────────┐
+        │   │  4. INFERENCE │  Send assembled context to LLM
+        │   │               │  via pi-ai (any provider)
+        │   │               │
+        │   │  Anthropic ───┤
+        │   │  OpenAI ──────┤
+        │   │  Google ──────┤
+        │   │  Ollama ──────┤
+        │   │  xAI ─────────┤
+        │   └──────┬───────┘
+        │          ▼
+        │   ┌──────────────┐       ┌──────────────────────┐
+        │   │  5. TOOL      │──────▶│ Execute tool calls:  │
+        │   │  EXECUTION    │       │  · read/write/edit   │
+        │   │               │◀──────│  · bash commands     │
+        │   │  (may loop    │       │  · memory_write      │
+        │   │   multiple    │       │  · memory_search     │
+        │   │   times)      │       │  · self_improve      │
+        │   └──────┬───────┘       │  · skill tools       │
+        │          │                └──────────────────────┘
+        │          ▼
+        │   ┌──────────────┐
+        │   │  6. REPLY     │  Stream response back to user
+        │   │               │  (CLI terminal or WhatsApp)
+        │   └──────┬───────┘
+        │          ▼
+        │   ┌──────────────┐
+        │   │  7. PERSIST   │  Save session to JSONL
+        │   │               │  Update memory if needed
+        │   └──────┬───────┘
+        │          │
+        │          ▼
+        │      Wait for
+        │    next message
+        │          │
+        └──────────┘
+```
+
+---
+
+## 4. Self-Improvement Cycle
+
+```
+    Agent identifies something to improve
+    (a tool, prompt, skill, or extension)
+                    │
+                    ▼
+    ┌───────────────────────────────┐
+    │  1. READ own source code      │
+    │     via the `read` tool       │
+    └───────────────┬───────────────┘
+                    ▼
+    ┌───────────────────────────────┐
+    │  2. MODIFY code               │
+    │     via `edit` / `write`      │
+    └───────────────┬───────────────┘
+                    ▼
+    ┌───────────────────────────────┐
+    │  3. Call `self_improve` tool   │
+    └───────────────┬───────────────┘
+                    │
+          ┌─────────────────────┐
+          ▼                     │
+    ┌───────────┐               │
+    │ a. BUILD  │               │
+    │ npm run   │               │
+    │ build     │               │
+    └─────┬─────┘               │
+          │                     │
+     Pass?│    ┌────────────┐   │
+     ┌────┤    │  FAIL ✗    │   │
+     │ Y  │    │ Abort.     │───┘  (Agent fixes & retries)
+     │    │    │ No changes │
+     ▼    │    │ applied.   │
+    ┌─────┴───┐└────────────┘
+    │ b. TEST  │
+    │ npm test │
+    └─────┬────┘
+          │
+     Pass?│    ┌────────────┐
+     ┌────┤    │  FAIL ✗    │───┐
+     │ Y  │    │ Abort.     │   │  (Agent fixes & retries)
+     │    │    └────────────┘   │
+     ▼                          │
+    ┌──────────┐                │
+    │ c. COMMIT│                │
+    │ git      │                │
+    │ commit   │                │
+    └────┬─────┘                │
+         ▼                      │
+    ┌──────────────┐            │
+    │ d. RESTART   │            │
+    │ Signal the   │            │
+    │ process      │            │
+    │ wrapper      │            │
+    │ (run.ts)     │            │
+    └────┬─────────┘            │
+         ▼                      │
+    ┌──────────────────┐        │
+    │ Agent restarts   │        │
+    │ from persisted   │        │
+    │ session with     │        │
+    │ improvement      │        │
+    │ applied ✓        │        │
+    └──────────────────┘        │
+                                │
+         ◀──────────────────────┘
+```
+
+---
+
+## 5. Dynamic Prompt Assembly
+
+```
+    buildSystemPrompt() at session start
+                    │
+                    ▼
+    ┌──── workspace/ ─────────────────────────────┐
+    │                                              │
+    │   AGENTS.md ─────┐                           │
+    │   SOUL.md ───────┤                           │
+    │   USER.md ───────┤   Each file read,         │
+    │   IDENTITY.md ───┼──▶ truncated to 20k,      │
+    │   TOOLS.md ──────┤   concatenated in order   │
+    │   MEMORY.md ─────┘                           │
+    │                                              │
+    │   skills/                                    │
+    │   ├── skill-a/ ──┐                           │
+    │   ├── skill-b/ ──┼──▶ Compact manifest       │
+    │   └── skill-c/ ──┘   (names + descriptions   │
+    │                       injected into prompt)   │
+    └──────────────────────────────────────────────┘
+                    │
+                    ▼
+    ┌──────────────────────────────────────────────┐
+    │         ASSEMBLED SYSTEM PROMPT              │
+    │                                              │
+    │  ┌─ Operating Instructions (AGENTS.md) ───┐  │
+    │  ├─ Persona & Tone (SOUL.md) ─────────────┤  │
+    │  ├─ User Profile (USER.md) ───────────────┤  │
+    │  ├─ Identity (IDENTITY.md) ───────────────┤  │
+    │  ├─ Tool Guidance (TOOLS.md) ─────────────┤  │
+    │  ├─ Memory Snapshot (MEMORY.md) ──────────┤  │
+    │  ├─ Skills Manifest (compact list) ───────┤  │
+    │  └─ Runtime Context (date, model, OS) ────┘  │
+    │                                              │
+    │  Total budget: ~150k chars                   │
+    │  Per-file limit: ~20k chars                  │
+    └──────────────────────────────────────────────┘
+```
+
+---
+
+## 6. Memory System
+
+```
+    ┌──────────────────────────────────────────────────────────────────┐
+    │                       MEMORY SYSTEM                              │
+    │                                                                  │
+    │   ┌─────────────────┐         ┌──────────────────────────────┐  │
+    │   │   MEMORY.md     │         │   memory/ (daily logs)       │  │
+    │   │                 │         │                              │  │
+    │   │  Curated,       │         │  2026-02-23.md               │  │
+    │   │  durable facts  │         │  2026-02-22.md               │  │
+    │   │  across all     │         │  2026-02-21.md               │  │
+    │   │  sessions       │         │  ...                         │  │
+    │   │                 │         │                              │  │
+    │   │  Injected into  │         │  Append-only, searchable     │  │
+    │   │  system prompt  │         │  Not injected into prompt    │  │
+    │   └────────┬────────┘         └──────────────┬───────────────┘  │
+    │            │                                  │                  │
+    │            └──────────┬───────────────────────┘                  │
+    │                       │                                          │
+    │            ┌──────────▼──────────┐                               │
+    │            │   Agent Tools       │                               │
+    │            │                     │                               │
+    │            │  memory_write ──────┼──▶ Save facts to either      │
+    │            │  memory_read ───────┼──▶ Read specific files       │
+    │            │  memory_search ─────┼──▶ (Optional) Vector search  │
+    │            └─────────────────────┘                               │
+    │                                                                  │
+    │   ┌──────────────────────────────────────────────────────────┐   │
+    │   │   AUTO-FLUSH (extension)                                 │   │
+    │   │                                                          │   │
+    │   │   Before context compaction:                             │   │
+    │   │   1. Agent reviews conversation for important facts      │   │
+    │   │   2. Persists them to MEMORY.md                          │   │
+    │   │   3. Context gets compacted (summarized)                 │   │
+    │   │   4. Important facts survive via MEMORY.md               │   │
+    │   └──────────────────────────────────────────────────────────┘   │
+    │                                                                  │
+    │   ┌──────────────────────────────────────────────────────────┐   │
+    │   │   OPTIONAL: VECTOR SEARCH                                │   │
+    │   │   SQLite + sqlite-vec                                    │   │
+    │   │   Hybrid BM25 + vector search                            │   │
+    │   │   Embeddings via OpenAI or Ollama                        │   │
+    │   └──────────────────────────────────────────────────────────┘   │
+    └──────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 7. Project File Map
+
+```
+~/my-agent/
+│
+├── run.ts ·················· Process wrapper (PROTECTED 🔒)
+│                             Restarts agent on self-modification
+│
+├── src/
+│   ├── index.ts ············ CLI entrypoint (readline / pi-tui)
+│   ├── agent.ts ············ Session creation + model resolution
+│   ├── prompt.ts ··········· buildSystemPrompt() — reads workspace/
+│   ├── memory.ts ··········· MEMORY.md read/write/flush logic
+│   ├── skills.ts ··········· Scans workspace/skills/, loads tools
+│   ├── router.ts ··········· CLI vs WhatsApp message dispatch
+│   │
+│   ├── tools/
+│   │   ├── memory-tools.ts · memory_write, memory_read, memory_search
+│   │   └── self-improve.ts · build → test → commit → restart
+│   │
+│   ├── extensions/
+│   │   ├── memory-flush.ts · Auto-save facts before compaction
+│   │   ├── context-pruning.ts Trim old large tool results
+│   │   └── self-improve-guard.ts Block edits to protected files
+│   │
+│   └── channels/
+│       └── whatsapp.ts ····· Baileys integration, per-chat sessions
+│
+├── workspace/ ·············· All self-modifiable by the agent
+│   ├── AGENTS.md ··········· Operating instructions
+│   ├── SOUL.md ············· Persona, tone, boundaries
+│   ├── USER.md ············· Your profile and preferences
+│   ├── IDENTITY.md ········· Agent name and characteristics
+│   ├── TOOLS.md ············ Tool guidance and conventions
+│   ├── MEMORY.md ··········· Long-term curated memory
+│   ├── memory/ ············· Daily logs (YYYY-MM-DD.md)
+│   └── skills/ ············· Skill directories
+│       └── example-skill/
+│           ├── SKILL.md ···· Instructions for the agent
+│           └── tools.ts ···· Optional tool definitions
+│
+├── tests/ ·················· Must all pass before self-modification
+│   ├── smoke.test.ts
+│   ├── prompt.test.ts
+│   ├── memory.test.ts
+│   └── skills.test.ts
+│
+├── auth.json ··············· API keys (PROTECTED 🔒, gitignored)
+├── config.json ············· Model selection + settings
+├── package.json
+├── tsconfig.json
+└── .gitignore
+```
+
+**File access rules:**
+
+```
+  PROTECTED 🔒 (agent CANNOT modify)     SELF-MODIFIABLE ✏️ (agent CAN modify)
+  ─────────────────────────────────────   ──────────────────────────────────────
+  run.ts                                  Everything in src/ (with build+test)
+  auth.json                               Everything in workspace/ (immediate)
+  node_modules/                           tests/ (can add new tests)
+  .git/                                   config.json (suggest model changes)
+```
+
+---
+
+## 8. Build Phases — Roadmap
+
+```
+  PHASE 1                PHASE 2              PHASE 3
+  Foundation             Dynamic Prompt       Long-Term Memory
+  ───────────────────    ──────────────────   ──────────────────
+  1.1 Project scaffold   2.1 Workspace files  3.1 Memory files
+  1.2 Auth + model cfg   2.2 Prompt engine    3.2 Memory tools
+  1.3 Minimal CLI        2.3 Integration      3.3 Prompt injection
+  1.4 Process wrapper                         3.4 Auto-flush
+  1.5 Session persist                         3.5 Vector search?
+         │                      │                     │
+         ▼                      ▼                     ▼
+  ✅ Working CLI agent   ✅ Dynamic prompt     ✅ Cross-session
+     talks to any LLM      from workspace        memory
+     persists sessions      files
+
+  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+
+  PHASE 4                PHASE 5              PHASE 6
+  Skill Loading          Model Provider       Self-Improvement
+  ───────────────────    ──────────────────   ──────────────────
+  4.1 Skill structure    5.1 Model resolution 6.1 Self-improve tool
+  4.2 Prompt injection   5.2 Auth management  6.2 Guardrails
+  4.3 Tool loading       5.3 Local models     6.3 Context pruning
+  4.4 First skills                            6.4 Test suite
+         │                      │                     │
+         ▼                      ▼                     ▼
+  ✅ Load & create       ✅ Any LLM, swap     ✅ Agent modifies
+     skills at runtime      with one change       own code safely
+
+  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+
+  PHASE 7                PHASE 8
+  WhatsApp Channel       Polish & Harden
+  ───────────────────    ──────────────────
+  7.1 Baileys setup      8.1 Logging
+  7.2 Per-chat sessions  8.2 launchd service
+  7.3 Message router     8.3 Backup/recovery
+  7.4 DM policy          8.4 Documentation
+         │                      │
+         ▼                      ▼
+  ✅ WhatsApp access     ✅ Production-ready
+     w/ isolated sessions
+```
+
+---
+
+## 9. Data Flow — How Everything Connects
+
+```
+                    ┌─────────┐       ┌─────────┐
+                    │   CLI   │       │WhatsApp │
+                    └────┬────┘       └────┬────┘
+                         │                 │
+                         ▼                 ▼
+                    ┌──────────────────────────┐
+                    │        router.ts          │
+                    └────────────┬─────────────┘
+                                 │
+                    ┌────────────▼─────────────┐
+                    │       agent.ts            │
+                    │  createAgentSession()     │
+                    │                           │
+                    │  ┌─────────────────────┐  │
+                    │  │    prompt.ts         │  │
+                    │  │  reads workspace/*   │──┼──▶ workspace/
+                    │  │  reads skills/*     │  │    (AGENTS.md, SOUL.md,
+                    │  │  injects memory     │  │     MEMORY.md, skills/...)
+                    │  └─────────────────────┘  │
+                    │                           │
+                    │  ┌─────────────────────┐  │
+                    │  │    pi-ai             │  │     ┌──────────────┐
+                    │  │  getModel()         │──┼────▶│ auth.json    │
+                    │  │  sends to LLM       │──┼────▶│ config.json  │
+                    │  └─────────────────────┘  │     └──────────────┘
+                    │             │              │            │
+                    │             ▼              │            ▼
+                    │  ┌─────────────────────┐  │   ┌──────────────────┐
+                    │  │   Tool Execution    │  │   │   LLM Provider   │
+                    │  │                     │  │   │ (Anthropic,      │
+                    │  │ Coding: read/write  │  │   │  OpenAI, Google, │
+                    │  │         edit/bash   │  │   │  Ollama, ...)    │
+                    │  │ Memory: write/read  │  │   └──────────────────┘
+                    │  │ Skills: loaded      │  │
+                    │  │ Self:   self_improve│  │
+                    │  └──────────┬──────────┘  │
+                    │             │              │
+                    │             ▼              │
+                    │  ┌─────────────────────┐  │
+                    │  │   Extensions        │  │
+                    │  │  · memory-flush     │  │
+                    │  │  · context-pruning  │  │
+                    │  │  · self-improve     │  │
+                    │  │    -guard           │  │
+                    │  └─────────────────────┘  │
+                    └───────────────────────────┘
+                                 │
+                                 ▼
+                    ┌───────────────────────────┐
+                    │   Session Persistence     │
+                    │   (.sessions/ as JSONL)   │
+                    └───────────────────────────┘
+```
+
+---
+
+## 10. The Dependency Stack
+
+```
+  YOUR CODE (proprietary)
+  ┌───────────────────────────────────────────┐
+  │  prompt.ts · memory.ts · skills.ts        │
+  │  tools/ · extensions/ · channels/         │
+  │  workspace/ · router.ts                   │
+  └─────────────────────┬─────────────────────┘
+                        │ uses
+                        ▼
+  PI-MONO (foundation, not forked)
+  ┌───────────────────────────────────────────┐
+  │  pi-coding-agent  → Coding tools,         │
+  │                     sessions, compaction   │
+  │  pi-agent-core    → Agent loop, tool      │
+  │                     calling, state machine │
+  │  pi-ai            → Unified LLM API       │
+  │  pi-tui           → Terminal UI (optional) │
+  └─────────────────────┬─────────────────────┘
+                        │ uses
+                        ▼
+  EXTERNAL LIBS
+  ┌───────────────────────────────────────────┐
+  │  baileys          → WhatsApp integration  │
+  │  better-sqlite3   → Vector search storage │
+  │  TypeScript        → Language              │
+  │  Vitest            → Testing               │
+  └───────────────────────────────────────────┘
+```
+
+---
+
+## Quick Reference — Key Concepts
+
+| Concept | What it is | Where it lives |
+|---------|-----------|----------------|
+| **Agent Loop** | Intake → Route → Context → Inference → Tools → Reply → Persist | `pi-agent-core` + `agent.ts` |
+| **System Prompt** | Assembled dynamically from workspace files at session start | `prompt.ts` reads `workspace/` |
+| **Memory** | Curated facts (MEMORY.md) + daily logs (memory/*.md) | `memory.ts` + `workspace/` |
+| **Skills** | Instruction files + optional tools the agent can load/create | `skills.ts` + `workspace/skills/` |
+| **Self-Improvement** | Agent edits own code → build → test → commit → restart | `tools/self-improve.ts` |
+| **Extensions** | Hooks that run at lifecycle events (compaction, tool calls) | `src/extensions/` |
+| **Process Wrapper** | Outer loop that restarts agent after self-modification | `run.ts` (protected) |
+| **Sessions** | JSONL files preserving conversation across restarts | `.sessions/` via pi-coding-agent |
