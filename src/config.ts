@@ -1,4 +1,4 @@
-import { readFileSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import type { Model } from "@mariozechner/pi-ai";
 
@@ -35,9 +35,16 @@ export interface TelephonyConfig {
   };
 }
 
-// Read config.json from the project root
+// Read config from file (local dev) or CONFIG_JSON env var (Railway/production)
 export function loadConfig(): Config {
-  return JSON.parse(readFileSync(join(ROOT, "config.json"), "utf-8"));
+  if (process.env.CONFIG_JSON) {
+    return JSON.parse(process.env.CONFIG_JSON);
+  }
+  const configPath = join(ROOT, "config.json");
+  if (!existsSync(configPath)) {
+    throw new Error("No config.json found and CONFIG_JSON env var not set");
+  }
+  return JSON.parse(readFileSync(configPath, "utf-8"));
 }
 
 // Resolve telephony credentials from environment variables.
