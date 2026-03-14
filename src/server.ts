@@ -65,6 +65,18 @@ export async function startServer(options: {
   server.get("/media-stream", { websocket: true }, (socket) => {
     let currentSession: CallSession | null = null;
 
+    function cleanupSession() {
+      if (currentSession) {
+        try {
+          currentSession.cleanup();
+        } catch (err) {
+          console.error(red("[error]") + ` Cleanup failed: ${err instanceof Error ? err.message : err}`);
+        }
+        activeCalls.delete(currentSession.streamSid);
+        currentSession = null;
+      }
+    }
+
     const transport = new TwilioTransport(socket);
 
     transport.onStart((streamSid, callSid) => {
@@ -72,33 +84,28 @@ export async function startServer(options: {
       activeCalls.set(streamSid, session);
       currentSession = session;
       console.log(cyan("[call]") + ` Connected — ${dim(callSid.slice(0, 10) + "...")}`);
-      session.initialize(config, agentOptions);
+      session.initialize(config, agentOptions).catch((err) => {
+        console.error(red("[error]") + ` Call init failed: ${err instanceof Error ? err.message : err}`);
+        cleanupSession();
+      });
     });
 
     transport.onMedia((payload) => {
-      if (currentSession?.asr) {
-        currentSession.asr.feedAudio(payload);
+      try {
+        if (currentSession?.asr) {
+          currentSession.asr.feedAudio(payload);
+        }
+      } catch (err) {
+        console.error(red("[error]") + ` Audio feed failed: ${err instanceof Error ? err.message : err}`);
       }
     });
 
-    transport.onStop(() => {
-      if (currentSession) {
-        currentSession.cleanup();
-        activeCalls.delete(currentSession.streamSid);
-        currentSession = null;
-      }
-    });
-
-    transport.onClose(() => {
-      if (currentSession) {
-        currentSession.cleanup();
-        activeCalls.delete(currentSession.streamSid);
-        currentSession = null;
-      }
-    });
+    transport.onStop(() => cleanupSession());
+    transport.onClose(() => cleanupSession());
 
     transport.onError((err) => {
       console.error(red("[error]") + ` WebSocket: ${err.message}`);
+      cleanupSession();
     });
   });
 
@@ -117,6 +124,40 @@ export async function startServer(options: {
 
   const port = config.port;
   await server.listen({ port, host: "0.0.0.0" });
+
+  // --- Graceful shutdown ---
+  // On kill signal: stop accepting new calls, wait for active calls to finish, then exit.
+  let shuttingDown = false;
+  const shutdown = async (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`\n${cyan("[server]")} ${signal} received — shutting down gracefully`);
+
+    // Stop accepting new connections
+    await server.close();
+
+    // Wait for active calls to drain (check every second, max 30s)
+    const maxWait = 30_000;
+    const start = Date.now();
+    while (activeCalls.size > 0 && Date.now() - start < maxWait) {
+      console.log(dim(`  [shutdown] Waiting for ${activeCalls.size} active call(s)...`));
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+
+    if (activeCalls.size > 0) {
+      console.log(red(`  [shutdown] Force-closing ${activeCalls.size} remaining call(s)`));
+      for (const session of activeCalls.values()) {
+        try { session.cleanup(); } catch {}
+      }
+      activeCalls.clear();
+    }
+
+    console.log(cyan("[server]") + " Shutdown complete");
+    process.exit(0);
+  };
+
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
 
   console.log("");
   console.log(cyan("═══ Telephony Server ═══"));

@@ -43,10 +43,10 @@ export async function createAsrSession(
     audioFormat: AudioFormat.ULAW_8000,
     sampleRate: 8000,
     commitStrategy: CommitStrategy.VAD,
-    vadSilenceThresholdSecs: 0.8,
+    vadSilenceThresholdSecs: 1.5,
     vadThreshold: 0.5,
     minSpeechDurationMs: 200,
-    minSilenceDurationMs: 300,
+    minSilenceDurationMs: 500,
     languageCode: language,
   });
 

@@ -7,7 +7,9 @@ description: AdvancedMD CLI for patient verification, patient creation, and appo
 
 AdvancedMD CLI. All output is JSON. Auth token is pre-cached at server startup.
 
-IMPORTANT: Run as `amd <command>` — it is in PATH at `/usr/local/bin/amd`. Do NOT use `./amd`. Do NOT cd into the skills directory. Do NOT invent flags — only use the exact flags documented below.
+IMPORTANT: `amd` is a CLI program, NOT a tool/function. You MUST use the `bash` tool to run it. For example, to verify a patient, call the bash tool with: {"command": "amd verify-patient --last-name \"Smith\" --dob \"01/15/1980\""}
+
+It is in PATH at `/usr/local/bin/amd`. Do NOT use `./amd`. Do NOT cd into the skills directory. Do NOT invent flags — only use the exact flags documented below.
 
 If any command returns exit code 2, run `amd auth` to refresh the token, then retry.
 
