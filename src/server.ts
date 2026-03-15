@@ -105,7 +105,7 @@ export async function startServer(options: {
       if (currentSession?.vad && currentSession?.bargeIn) {
         currentSession.vad.processChunk(payload).then((prob) => {
           if (prob !== null) {
-            if (prob > 0.5) {
+            if (currentSession?.state === "speaking" || prob > 0.5) {
               console.log(dim(`  [vad] prob=${prob.toFixed(2)} state=${currentSession?.state}`));
             }
             if (currentSession?.bargeIn) {
