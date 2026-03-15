@@ -93,6 +93,8 @@ export async function startServer(options: {
       });
     });
 
+    // Log raw audio energy periodically during speaking state
+    let energySampleCount = 0;
     transport.onMedia((payload) => {
       try {
         if (currentSession?.asr) {
@@ -100,6 +102,29 @@ export async function startServer(options: {
         }
       } catch (err) {
         console.error(red("[error]") + ` Audio feed failed: ${err instanceof Error ? err.message : err}`);
+      }
+      // Check raw audio energy during speaking to see if Twilio sends real audio or silence
+      if (currentSession?.state === "speaking") {
+        energySampleCount++;
+        if (energySampleCount % 25 === 0) { // ~every 500ms
+          const raw = Buffer.from(payload, "base64");
+          let sumSq = 0;
+          for (let i = 0; i < raw.length; i++) {
+            // Quick mulaw decode to check energy
+            const byte = ~raw[i] & 0xff;
+            const sign = byte & 0x80;
+            const exp = (byte >> 4) & 0x07;
+            const mantissa = byte & 0x0f;
+            let mag = ((mantissa << 3) + 0x84) << exp;
+            mag -= 0x84;
+            const sample = sign ? -mag : mag;
+            sumSq += sample * sample;
+          }
+          const rms = Math.sqrt(sumSq / raw.length);
+          console.log(dim(`  [energy] rms=${rms.toFixed(0)} state=speaking`));
+        }
+      } else {
+        energySampleCount = 0;
       }
       // Local VAD for fast barge-in detection
       if (currentSession?.vad && currentSession?.bargeIn) {
