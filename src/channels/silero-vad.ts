@@ -1,6 +1,5 @@
 // silero-vad.ts — Local Silero VAD via ONNX for fast barge-in detection
 // Shared ONNX session loaded once at startup; per-call VadState with own RNN hidden state.
-// Uses 32-sample context window matching the official Silero VAD implementation.
 
 import * as ort from "onnxruntime-node";
 
@@ -33,38 +32,30 @@ export async function initVad(modelPath: string): Promise<void> {
 // --- Per-call state ---
 const SR = 8000; // Twilio mulaw sample rate
 const WINDOW = 256; // 32ms at 8kHz — Silero's expected frame size
-const CONTEXT_SIZE = 32; // Context samples prepended to each frame
 
 const STATE_SIZE = 2 * 1 * 128; // Silero v5 unified state: [2, 1, 128]
 
 export class VadState {
   private state: ort.Tensor;
-  private context: Float32Array;
-  private inputBuffer: Float32Array;
-  private sampleBuf: Float32Array;
-  private sampleBufLen: number;
+  private buffer: Float32Array;
+  private bufferPos: number;
   private processingChain: Promise<void>;
 
   constructor() {
     this.state = new ort.Tensor("float32", new Float32Array(STATE_SIZE), [2, 1, 128]);
-    this.context = new Float32Array(CONTEXT_SIZE);
-    this.inputBuffer = new Float32Array(CONTEXT_SIZE + WINDOW);
-    this.sampleBuf = new Float32Array(WINDOW + 160); // extra space for partial chunks
-    this.sampleBufLen = 0;
+    this.buffer = new Float32Array(WINDOW);
+    this.bufferPos = 0;
     this.processingChain = Promise.resolve();
   }
 
   /** Decode mulaw base64 payload, accumulate samples, run inference when a full frame is ready.
    *  Returns speech probability 0-1 when a frame completes, null otherwise. */
   processChunk(base64Mulaw: string): Promise<number | null> {
-    // Decode base64 → mulaw bytes → float32 PCM (normalized by int16 max)
+    // Decode base64 → mulaw bytes → float32 PCM (standard G.711 int16 / 32767)
     const raw = Buffer.from(base64Mulaw, "base64");
+    const samples = new Float32Array(raw.length);
     for (let i = 0; i < raw.length; i++) {
-      this.sampleBuf[this.sampleBufLen++] = MULAW_DECODE_TABLE[raw[i]] / 32767;
-    }
-
-    if (this.sampleBufLen < WINDOW) {
-      return Promise.resolve(null);
+      samples[i] = MULAW_DECODE_TABLE[raw[i]] / 32767;
     }
 
     // Chain processing to ensure ordered execution
@@ -72,15 +63,18 @@ export class VadState {
       this.processingChain = this.processingChain.then(async () => {
         let lastProb: number | null = null;
 
-        while (this.sampleBufLen >= WINDOW) {
-          lastProb = await this.runInference(this.sampleBuf.subarray(0, WINDOW));
+        let offset = 0;
+        while (offset < samples.length) {
+          const space = WINDOW - this.bufferPos;
+          const toCopy = Math.min(space, samples.length - offset);
+          this.buffer.set(samples.subarray(offset, offset + toCopy), this.bufferPos);
+          this.bufferPos += toCopy;
+          offset += toCopy;
 
-          // Shift remaining samples to front
-          const remaining = this.sampleBufLen - WINDOW;
-          if (remaining > 0) {
-            this.sampleBuf.copyWithin(0, WINDOW, this.sampleBufLen);
+          if (this.bufferPos === WINDOW) {
+            lastProb = await this.runInference();
+            this.bufferPos = 0;
           }
-          this.sampleBufLen = remaining;
         }
 
         resolve(lastProb);
@@ -90,14 +84,10 @@ export class VadState {
     return resultPromise;
   }
 
-  private async runInference(audioWindow: Float32Array): Promise<number> {
+  private async runInference(): Promise<number> {
     if (!sharedSession) throw new Error("VAD not initialized");
 
-    // Prepend context from previous frame (official Silero VAD approach)
-    this.inputBuffer.set(this.context, 0);
-    this.inputBuffer.set(audioWindow, CONTEXT_SIZE);
-
-    const input = new ort.Tensor("float32", this.inputBuffer, [1, CONTEXT_SIZE + WINDOW]);
+    const input = new ort.Tensor("float32", new Float32Array(this.buffer), [1, WINDOW]);
     const sr = new ort.Tensor("int64", BigInt64Array.from([BigInt(SR)]), []);
 
     const result = await sharedSession.run({
@@ -106,9 +96,8 @@ export class VadState {
       state: this.state,
     });
 
-    // Update RNN state and context for next frame
+    // Update RNN state for next frame
     this.state = result.stateN as ort.Tensor;
-    this.context = this.inputBuffer.slice(-CONTEXT_SIZE);
 
     const prob = (result.output as ort.Tensor).data[0] as number;
     return prob;
@@ -116,9 +105,8 @@ export class VadState {
 
   reset(): void {
     this.state = new ort.Tensor("float32", new Float32Array(STATE_SIZE), [2, 1, 128]);
-    this.context = new Float32Array(CONTEXT_SIZE);
-    this.sampleBuf.fill(0);
-    this.sampleBufLen = 0;
+    this.buffer = new Float32Array(WINDOW);
+    this.bufferPos = 0;
   }
 }
 
