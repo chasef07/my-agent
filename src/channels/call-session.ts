@@ -9,6 +9,8 @@ import { createAsrSession, type AsrSession } from "./telephony-asr.js";
 import { createAsrCallbacks, speakGreeting } from "./audio-pipeline.js";
 import type { TtsSession } from "./telephony-tts.js";
 import type { AgentSession } from "@mariozechner/pi-coding-agent";
+import { createVadState, type VadState } from "./silero-vad.js";
+import { createBargeInDetector, type BargeInDetector } from "./barge-in.js";
 
 export type CallState = "listening" | "processing" | "speaking";
 
@@ -29,6 +31,8 @@ export class CallSession {
   agentSession: AgentSession | null = null;
   asr: AsrSession | null = null;
   tts: TtsSession | null = null;
+  vad: VadState | null = null;
+  bargeIn: BargeInDetector | null = null;
   state: CallState = "listening";
   turnCount = 0;
   startedAt = new Date();
@@ -78,9 +82,19 @@ export class CallSession {
       console.error(red("[error]") + ` ASR init failed:`, err);
     }
 
+    // 3. Local VAD for fast barge-in
+    this.vad = createVadState();
+    this.bargeIn = createBargeInDetector(() => {
+      if (this.tts) { this.tts.cancel(); this.tts = null; }
+      this.transport.clearAudio(this.streamSid);
+      this.state = "listening";
+      this.vad?.reset();
+      this.bargeIn?.reset();
+    });
+
     console.log(dim(`  [init] Ready in ${ms(initStart)}`));
 
-    // 3. Greet the caller
+    // 4. Greet the caller
     speakGreeting(this, config);
   }
 
@@ -88,6 +102,8 @@ export class CallSession {
     const duration = ((Date.now() - this.startedAt.getTime()) / 1000).toFixed(1);
     if (this.asr) this.asr.close();
     if (this.tts) this.tts.cancel();
+    this.vad = null;
+    this.bargeIn = null;
     console.log(cyan("[call]") + ` Ended — ${this.turnCount} turns, ${duration}s`);
   }
 }

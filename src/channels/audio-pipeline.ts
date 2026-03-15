@@ -42,11 +42,13 @@ export function createAsrCallbacks(session: CallSession, config: TelephonyConfig
       process.stdout.write(`\r${dim("  [hearing]")} "${text}"          `);
       if (session.state !== "listening" && session.tts && hasRealWords(text)) {
         process.stdout.write("\n");
-        console.log(yellow("  [barge-in]") + " Caller interrupted — cancelling TTS");
+        console.log(yellow("  [asr barge-in]") + " (fallback) Caller interrupted — cancelling TTS");
         session.tts.cancel();
         session.tts = null;
         session.transport.clearAudio(session.streamSid);
         session.state = "listening";
+        session.vad?.reset();
+        session.bargeIn?.reset();
       }
     },
     onFinalTranscript(text) {
@@ -74,6 +76,8 @@ export function createAsrCallbacks(session: CallSession, config: TelephonyConfig
 export function speakGreeting(session: CallSession, config: TelephonyConfig): void {
   try {
     session.state = "speaking";
+    session.vad?.reset();
+    session.bargeIn?.reset();
     const greeting = createTtsSession(
       ttsConfigFrom(config),
       (base64Audio) => session.transport.sendAudio(session.streamSid, base64Audio),
@@ -109,6 +113,8 @@ export async function processUtterance(
     session.tts = null;
     session.transport.clearAudio(session.streamSid);
   }
+  session.vad?.reset();
+  session.bargeIn?.reset();
 
   const llmStart = Date.now();
   let firstTokenAt = 0;

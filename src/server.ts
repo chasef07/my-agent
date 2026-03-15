@@ -5,11 +5,14 @@ import Fastify, { type FastifyInstance } from "fastify";
 import websocketPlugin from "@fastify/websocket";
 import { execFile } from "child_process";
 import { promisify } from "util";
+import { fileURLToPath } from "url";
+import path from "path";
 import { glob } from "glob";
 import type { TelephonyConfig } from "./config.js";
 import type { AgentOptions } from "./agent.js";
 import { TwilioTransport } from "./channels/twilio-transport.js";
 import { CallSession } from "./channels/call-session.js";
+import { initVad } from "./channels/silero-vad.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -98,6 +101,16 @@ export async function startServer(options: {
       } catch (err) {
         console.error(red("[error]") + ` Audio feed failed: ${err instanceof Error ? err.message : err}`);
       }
+      // Local VAD for fast barge-in detection
+      if (currentSession?.vad && currentSession?.bargeIn) {
+        currentSession.vad.processChunk(payload).then((prob) => {
+          if (prob !== null && currentSession?.bargeIn) {
+            currentSession.bargeIn.onVadResult(prob, currentSession.state);
+          }
+        }).catch((err) => {
+          console.error(red("[error]") + ` VAD inference failed: ${err instanceof Error ? err.message : err}`);
+        });
+      }
     });
 
     transport.onStop(() => cleanupSession());
@@ -121,6 +134,10 @@ export async function startServer(options: {
   // Run warm scripts once at startup (amd auth, etc.) so the token is cached
   // before any calls come in. Per-call warming is redundant but harmless.
   await runWarmScripts().catch(() => {});
+
+  // Preload Silero VAD model so inference is instant on first call
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  await initVad(path.join(__dirname, "..", "models", "silero_vad.onnx"));
 
   const port = config.port;
   await server.listen({ port, host: "0.0.0.0" });

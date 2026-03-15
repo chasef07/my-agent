@@ -16,6 +16,7 @@
     "@mariozechner/pi-ai": "latest",
     "@mariozechner/pi-coding-agent": "latest",
     "fastify": "^5.8.2",
+    "onnxruntime-node": "^1.24.3",
     "twilio": "^5.12.2"
   },
   "devDependencies": {
