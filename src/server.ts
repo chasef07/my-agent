@@ -104,13 +104,8 @@ export async function startServer(options: {
       // Local VAD for fast barge-in detection
       if (currentSession?.vad && currentSession?.bargeIn) {
         currentSession.vad.processChunk(payload).then((prob) => {
-          if (prob !== null) {
-            if (currentSession?.state === "speaking" || prob > 0.5) {
-              console.log(dim(`  [vad] prob=${prob.toFixed(2)} state=${currentSession?.state}`));
-            }
-            if (currentSession?.bargeIn) {
-              currentSession.bargeIn.onVadResult(prob, currentSession.state);
-            }
+          if (prob !== null && currentSession?.bargeIn) {
+            currentSession.bargeIn.onVadResult(prob, currentSession.state);
           }
         }).catch((err) => {
           console.error(red("[error]") + ` VAD inference failed: ${err instanceof Error ? err.message : err}`);
