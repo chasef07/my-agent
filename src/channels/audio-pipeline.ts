@@ -1,5 +1,7 @@
 // audio-pipeline.ts — STT→LLM→TTS streaming, barge-in, fillers, and timing
 // The core logic that makes phone calls feel natural.
+// Uses an explicit state machine (listening → processing → speaking → listening)
+// instead of a boolean lock to manage turn transitions.
 
 import type { TelephonyConfig } from "../config.js";
 import { createTtsSession } from "./telephony-tts.js";
@@ -38,12 +40,13 @@ export function createAsrCallbacks(session: CallSession, config: TelephonyConfig
   return {
     onPartialTranscript(text) {
       process.stdout.write(`\r${dim("  [hearing]")} "${text}"          `);
-      if (session.processing && session.tts && hasRealWords(text)) {
+      if (session.state !== "listening" && session.tts && hasRealWords(text)) {
         process.stdout.write("\n");
         console.log(yellow("  [barge-in]") + " Caller interrupted — cancelling TTS");
         session.tts.cancel();
         session.tts = null;
         session.transport.clearAudio(session.streamSid);
+        session.state = "listening";
       }
     },
     onFinalTranscript(text) {
@@ -52,7 +55,13 @@ export function createAsrCallbacks(session: CallSession, config: TelephonyConfig
         console.log(dim(`  [filler] "${text}"`));
         return;
       }
+      if (session.state !== "listening") {
+        console.log(dim(`  [dropped] "${text}" (state=${session.state})`));
+        return;
+      }
       console.log(green("  [caller]") + ` "${text}"`);
+      session.state = "processing";
+      session.turnCount++;
       processUtterance(session, text, config);
     },
     onError(error) {
@@ -64,16 +73,23 @@ export function createAsrCallbacks(session: CallSession, config: TelephonyConfig
 // Send a greeting via TTS
 export function speakGreeting(session: CallSession, config: TelephonyConfig): void {
   try {
+    session.state = "speaking";
     const greeting = createTtsSession(
       ttsConfigFrom(config),
       (base64Audio) => session.transport.sendAudio(session.streamSid, base64Audio),
-      () => console.log(dim("  [greeting] Done")),
+      () => {
+        console.log(dim("  [greeting] Done"));
+        if (session.state === "speaking") {
+          session.state = "listening";
+        }
+      },
     );
     session.tts = greeting;
     greeting.pushToken("Welcome to Abita Eye Care, how can I help you today?");
     greeting.flush();
   } catch (err) {
     console.error(red("[error]") + ` Greeting TTS failed:`, err);
+    session.state = "listening";
   }
 }
 
@@ -83,7 +99,9 @@ export async function processUtterance(
   text: string,
   config: TelephonyConfig,
 ): Promise<void> {
-  if (!session.agentSession) return;
+  if (!session.agentSession || session.state !== "processing") return;
+
+  const thisTurn = session.turnCount;
 
   // Cancel any in-progress TTS
   if (session.tts) {
@@ -92,38 +110,33 @@ export async function processUtterance(
     session.transport.clearAudio(session.streamSid);
   }
 
-  // Pre-warm TTS WebSocket
-  let llmStart = Date.now();
+  const llmStart = Date.now();
   let firstTokenAt = 0;
   let firstTtsAt = 0;
-  let turn = 0;
 
   const tts = createTtsSession(
     ttsConfigFrom(config),
     (base64Audio) => {
+      if (session.turnCount !== thisTurn) return;
       if (!firstTtsAt) {
         firstTtsAt = Date.now();
         console.log(dim(`  [latency] First audio: ${ms(llmStart)}`));
       }
+      if (session.state === "processing") {
+        session.state = "speaking";
+      }
       session.transport.sendAudio(session.streamSid, base64Audio);
     },
     () => {
-      const total = ms(llmStart);
-      console.log(dim(`  [turn ${turn}] Complete in ${total}`));
+      if (session.turnCount !== thisTurn) return;
+      console.log(dim(`  [turn ${thisTurn}] Complete in ${ms(llmStart)}`));
+      if (session.state === "speaking") {
+        session.state = "listening";
+      }
     },
   );
   session.tts = tts;
 
-  // Wait for processing lock
-  while (session.processing) {
-    await new Promise((r) => setTimeout(r, 100));
-  }
-  session.processing = true;
-  session.turnCount++;
-  turn = session.turnCount;
-
-  // Reset timing after lock acquired
-  llmStart = Date.now();
   let agentText = "";
 
   const unsubscribe = session.agentSession.subscribe((event) => {
@@ -154,6 +167,10 @@ export async function processUtterance(
     tts.flush();
   } finally {
     unsubscribe();
-    session.processing = false;
+    // Only reset if this is still the current turn and no TTS audio was produced
+    // (if TTS produced audio, the done callback handles the transition)
+    if (session.turnCount === thisTurn && session.state === "processing") {
+      session.state = "listening";
+    }
   }
 }

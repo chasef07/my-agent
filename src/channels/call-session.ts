@@ -10,6 +10,8 @@ import { createAsrCallbacks, speakGreeting } from "./audio-pipeline.js";
 import type { TtsSession } from "./telephony-tts.js";
 import type { AgentSession } from "@mariozechner/pi-coding-agent";
 
+export type CallState = "listening" | "processing" | "speaking";
+
 const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;
 const cyan = (s: string) => `\x1b[36m${s}\x1b[0m`;
 const green = (s: string) => `\x1b[32m${s}\x1b[0m`;
@@ -27,7 +29,7 @@ export class CallSession {
   agentSession: AgentSession | null = null;
   asr: AsrSession | null = null;
   tts: TtsSession | null = null;
-  processing = false;
+  state: CallState = "listening";
   turnCount = 0;
   startedAt = new Date();
 

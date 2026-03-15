@@ -50,6 +50,14 @@ export async function createAsrSession(
     languageCode: language,
   });
 
+  // Keepalive ping every 15s to prevent idle timeout on long tool executions
+  const keepaliveTimer = setInterval(() => {
+    try {
+      const ws = (connection as any).websocket;
+      if (ws && ws.readyState === 1) ws.ping();
+    } catch { /* ignore */ }
+  }, 15_000);
+
   connection.on(RealtimeEvents.OPEN, () => {
     console.log("[asr] WebSocket open");
   });
@@ -89,6 +97,7 @@ export async function createAsrSession(
   connection.on(RealtimeEvents.CLOSE, () => {
     ready = false;
     closed = true;
+    clearInterval(keepaliveTimer);
     console.log("[asr] Connection closed");
   });
 
@@ -106,6 +115,7 @@ export async function createAsrSession(
     close() {
       closed = true;
       ready = false;
+      clearInterval(keepaliveTimer);
       pendingChunks.length = 0;
       connection.close();
     },
