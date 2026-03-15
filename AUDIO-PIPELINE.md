@@ -77,16 +77,21 @@ The latency budget breaks down as:
 
 ## Barge-In (Two Layers)
 
-### Layer 1: VAD (fast, ~100ms) — active during `processing` only
-- **Silero VAD** runs locally on every audio chunk from Twilio
-- Decodes mulaw → float32, runs ONNX inference per 32ms frame
-- `BargeInDetector` requires **3 consecutive frames above 0.85 probability** (~96ms)
-- **PSTN echo cancellation limitation**: During `speaking` state, the telephone network suppresses the caller's inbound audio to prevent echo. Twilio receives silence (rms=0), so VAD cannot detect speech while the agent is talking. VAD is effective during `processing` state (before TTS playback starts) when echo cancellation is not active.
+### Layer 1: VAD (fast, ~100ms) — primary barge-in mechanism
+- **Silero VAD v5** runs locally on every audio chunk from Twilio
+- Decodes mulaw → float32 via standard G.711 table, normalized by /32767
+- **Context window**: 32 samples from previous frame prepended to each 256-sample window → input tensor `[1, 288]`. Critical for model accuracy — without it, each frame is evaluated in isolation and speech onset detection degrades.
+- RNN state `[2, 1, 128]` persisted as Float32Array, copied (not replaced) between frames
+- `BargeInDetector` requires **3 consecutive frames above 0.65 probability** (~96ms)
+- **PSTN echo cancellation**: Telephone networks attenuate (not silence) inbound audio during outbound playback. Speech probs during playback typically peak 0.6-0.8 instead of 0.9+. The 0.65 threshold catches attenuated speech; 0.85 was too aggressive and missed it entirely.
+- ONNX session config: single-threaded (`interOpNumThreads: 1`, `intraOpNumThreads: 1`) for deterministic execution
+- Reference implementation: [Together AI phone voice agent](https://docs.together.ai/docs/how-to-build-phone-voice-agent)
 
-### Layer 2: ASR partial transcript (primary during playback, ~300-500ms)
-- If ASR emits a partial transcript with real words while agent is speaking, barge-in fires
+### Layer 2: ASR partial transcript (fallback, ~300-500ms)
+- If ASR emits a partial transcript with real words while agent is `speaking`, barge-in fires
 - Slower because it round-trips through ElevenLabs cloud ASR
-- **This is the primary barge-in mechanism during `speaking` state** due to the PSTN echo cancellation limitation above — ElevenLabs ASR can detect speech even through attenuated audio
+- Acts as a safety net if VAD misses
+- **Important**: Only fires during `speaking` state, not `processing` — stale ASR partials from the just-committed utterance can arrive during `processing` and falsely cancel the response before the caller hears anything
 
 ### When barge-in fires:
 1. TTS WebSocket is closed (stops generating audio)
@@ -171,8 +176,8 @@ The model sometimes gives paragraph-length responses that take 800ms+ to fully s
 ### ASR silence threshold
 `vadSilenceThresholdSecs: 1.5` means the system waits 1.5s of silence before committing a transcript. This adds perceived latency — the caller finishes speaking, then waits 1.5s before the agent starts responding. Lowering this risks cutting off callers mid-thought. Could be made dynamic based on context (shorter for yes/no questions, longer for open-ended).
 
-### PSTN echo cancellation limits VAD barge-in
-Standard telephony networks suppress the return audio path when one party is speaking (echo cancellation). This means Twilio's inbound audio stream contains silence (rms=0) while the agent's TTS audio plays to the caller. No local VAD implementation can detect caller speech in silence. This is not a Twilio configuration — it's fundamental PSTN behavior. ASR barge-in (Layer 2, ~300-500ms) is the effective barge-in mechanism during playback. VAD remains useful during `processing` state before TTS begins.
+### VAD barge-in during processing state
+VAD fires during both `speaking` and `processing` states. During `processing`, the caller hasn't heard any response yet — a VAD barge-in here may cut off the caller mid-sentence if they're still talking. Consider whether VAD barge-in during `processing` should require more consecutive frames or be disabled entirely.
 
 ## File Map
 
