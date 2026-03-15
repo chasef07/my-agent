@@ -84,7 +84,7 @@ export function speakGreeting(session: CallSession, config: TelephonyConfig): vo
       () => {
         console.log(dim("  [greeting] Done"));
         if (session.state === "speaking") {
-          session.state = "listening";
+          session.transport.sendMark(session.streamSid, "greeting-done");
         }
       },
     );
@@ -137,7 +137,9 @@ export async function processUtterance(
       if (session.turnCount !== thisTurn) return;
       console.log(dim(`  [turn ${thisTurn}] Complete in ${ms(llmStart)}`));
       if (session.state === "speaking") {
-        session.state = "listening";
+        // Don't transition immediately — send a mark and wait for Twilio
+        // to confirm the caller has actually heard the audio
+        session.transport.sendMark(session.streamSid, `turn-${thisTurn}-done`);
       }
     },
   );

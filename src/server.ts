@@ -113,6 +113,12 @@ export async function startServer(options: {
       }
     });
 
+    transport.onMark((name) => {
+      if (currentSession && currentSession.state === "speaking") {
+        currentSession.state = "listening";
+      }
+    });
+
     transport.onStop(() => cleanupSession());
     transport.onClose(() => cleanupSession());
 
