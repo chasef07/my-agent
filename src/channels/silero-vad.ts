@@ -33,17 +33,16 @@ export async function initVad(modelPath: string): Promise<void> {
 const SR = 8000; // Twilio mulaw sample rate
 const WINDOW = 256; // 32ms at 8kHz — Silero's expected frame size
 
+const STATE_SIZE = 2 * 1 * 128; // Silero v5 unified state: [2, 1, 128]
+
 export class VadState {
-  private h: ort.Tensor;
-  private c: ort.Tensor;
+  private state: ort.Tensor;
   private buffer: Float32Array;
   private bufferPos: number;
   private processingChain: Promise<void>;
 
   constructor() {
-    // Silero v5 RNN state: 2 x 1 x 64
-    this.h = new ort.Tensor("float32", new Float32Array(2 * 64), [2, 1, 64]);
-    this.c = new ort.Tensor("float32", new Float32Array(2 * 64), [2, 1, 64]);
+    this.state = new ort.Tensor("float32", new Float32Array(STATE_SIZE), [2, 1, 128]);
     this.buffer = new Float32Array(WINDOW);
     this.bufferPos = 0;
     this.processingChain = Promise.resolve();
@@ -94,21 +93,18 @@ export class VadState {
     const result = await sharedSession.run({
       input,
       sr,
-      h: this.h,
-      c: this.c,
+      state: this.state,
     });
 
     // Update RNN state for next frame
-    this.h = result.hn as ort.Tensor;
-    this.c = result.cn as ort.Tensor;
+    this.state = result.stateN as ort.Tensor;
 
     const prob = (result.output as ort.Tensor).data[0] as number;
     return prob;
   }
 
   reset(): void {
-    this.h = new ort.Tensor("float32", new Float32Array(2 * 64), [2, 1, 64]);
-    this.c = new ort.Tensor("float32", new Float32Array(2 * 64), [2, 1, 64]);
+    this.state = new ort.Tensor("float32", new Float32Array(STATE_SIZE), [2, 1, 128]);
     this.buffer = new Float32Array(WINDOW);
     this.bufferPos = 0;
   }
