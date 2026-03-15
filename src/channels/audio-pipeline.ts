@@ -40,7 +40,7 @@ export function createAsrCallbacks(session: CallSession, config: TelephonyConfig
   return {
     onPartialTranscript(text) {
       process.stdout.write(`\r${dim("  [hearing]")} "${text}"          `);
-      if (session.state !== "listening" && session.tts && hasRealWords(text)) {
+      if (session.state === "speaking" && session.tts && hasRealWords(text)) {
         process.stdout.write("\n");
         console.log(yellow("  [asr barge-in]") + " (fallback) Caller interrupted — cancelling TTS");
         session.tts.cancel();
