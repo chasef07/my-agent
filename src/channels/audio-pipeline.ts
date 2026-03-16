@@ -175,6 +175,15 @@ export async function processUtterance(
     tts.flush();
   } finally {
     unsubscribe();
+    const totalMs = Date.now() - llmStart;
+    session.logger.logTurn(
+      thisTurn,
+      text,
+      agentText,
+      firstTokenAt ? firstTokenAt - llmStart : 0,
+      firstTtsAt ? firstTtsAt - llmStart : 0,
+      totalMs,
+    );
     // Only reset if this is still the current turn and no TTS audio was produced
     // (if TTS produced audio, the done callback handles the transition)
     if (session.turnCount === thisTurn && session.state === "processing") {

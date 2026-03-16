@@ -11,6 +11,7 @@ import type { TtsSession } from "./telephony-tts.js";
 import type { AgentSession } from "@mariozechner/pi-coding-agent";
 import { createVadState, type VadState } from "./silero-vad.js";
 import { createBargeInDetector, type BargeInDetector } from "./barge-in.js";
+import { CallLogger } from "./call-logger.js";
 
 export type CallState = "listening" | "processing" | "speaking";
 
@@ -33,6 +34,7 @@ export class CallSession {
   tts: TtsSession | null = null;
   vad: VadState | null = null;
   bargeIn: BargeInDetector | null = null;
+  logger: CallLogger;
   state: CallState = "listening";
   turnCount = 0;
   startedAt = new Date();
@@ -45,6 +47,7 @@ export class CallSession {
     this.callSid = callSid;
     this.streamSid = streamSid;
     this.transport = transport;
+    this.logger = new CallLogger(callSid);
   }
 
   async initialize(config: TelephonyConfig, agentOptions: AgentOptions): Promise<void> {
@@ -54,6 +57,7 @@ export class CallSession {
     try {
       const session = await startAgent({ ...agentOptions, resumeSession: false });
       this.agentSession = session;
+      this.logger.attach(session);
       session.subscribe((event) => {
         if (event.type === "tool_execution_start") {
           const preview = JSON.stringify(event.args);
@@ -95,7 +99,7 @@ export class CallSession {
     console.log(dim(`  [init] Ready in ${ms(initStart)}`));
 
     // 4. Greet the caller — short delay so Twilio finishes bridging the audio path
-    await new Promise((r) => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 750));
     speakGreeting(this, config);
   }
 
@@ -105,6 +109,7 @@ export class CallSession {
     if (this.tts) this.tts.cancel();
     this.vad = null;
     this.bargeIn = null;
+    this.logger.flush();
     console.log(cyan("[call]") + ` Ended — ${this.turnCount} turns, ${duration}s`);
   }
 }

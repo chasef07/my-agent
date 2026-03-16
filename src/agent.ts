@@ -51,6 +51,23 @@ export async function startAgent(options: AgentOptions): Promise<AgentSession> {
   const resourceLoader = new DefaultResourceLoader({
     systemPromptOverride: () => systemPrompt,
     appendSystemPromptOverride: () => [],
+    extensionFactories: [
+      (pi: any) => {
+        // Fix tool calling for vLLM / Baseten:
+        // 1. Disable parallel tool calls — GLM-4.7 garbles args when emitting multiple at once
+        // 2. Remove 'strict' field from tool defs — vLLM doesn't support it
+        pi.on("before_provider_request", (event: any) => {
+          const payload = event.payload;
+          payload.parallel_tool_calls = false;
+          if (payload.tools) {
+            for (const tool of payload.tools) {
+              if (tool.function) delete tool.function.strict;
+            }
+          }
+          return payload;
+        });
+      },
+    ],
   });
   await resourceLoader.reload();
 

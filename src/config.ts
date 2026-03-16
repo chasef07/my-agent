@@ -99,6 +99,7 @@ export function createModel(config: Config): Model<"openai-completions"> {
       supportsStore: false,
       supportsDeveloperRole: false,
       maxTokensField: "max_tokens" as const,
+      supportsStrictMode: false,       // vLLM doesn't support 'strict' in tool definitions
     },
   };
 }
