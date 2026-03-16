@@ -91,5 +91,14 @@ export function createModel(config: Config): Model<"openai-completions"> {
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, // no cost tracking yet
     contextWindow: config.contextWindow,
     maxTokens: config.maxTokens,
+    // Baseten (vLLM) is OpenAI-compatible but doesn't support newer OpenAI-specific
+    // fields. Without these overrides, pi-ai sends "developer" role (model expects
+    // "system"), "store: false" (unknown field), and "max_completion_tokens" (wrong
+    // field name) — causing the system prompt to be ignored and tool calls to break.
+    compat: {
+      supportsStore: false,
+      supportsDeveloperRole: false,
+      maxTokensField: "max_tokens" as const,
+    },
   };
 }

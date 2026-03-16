@@ -94,7 +94,8 @@ export class CallSession {
 
     console.log(dim(`  [init] Ready in ${ms(initStart)}`));
 
-    // 4. Greet the caller
+    // 4. Greet the caller — short delay so Twilio finishes bridging the audio path
+    await new Promise((r) => setTimeout(r, 500));
     speakGreeting(this, config);
   }
 
