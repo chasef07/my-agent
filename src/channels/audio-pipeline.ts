@@ -5,6 +5,8 @@
 
 import type { TelephonyConfig } from "../config.js";
 import { createTtsSession } from "./telephony-tts.js";
+import { createInworldTtsSession } from "./telephony-tts-inworld.js";
+import type { TtsSession } from "./telephony-tts.js";
 import type { TwilioTransport } from "./twilio-transport.js";
 import type { CallSession } from "./call-session.js";
 import type { AsrCallbacks } from "./telephony-asr.js";
@@ -27,12 +29,25 @@ export function hasRealWords(text: string): boolean {
   return words.some((w) => !FILLERS.has(w));
 }
 
-function ttsConfigFrom(config: TelephonyConfig) {
-  return {
-    apiKey: config.elevenlabs.apiKey,
-    voiceId: config.elevenlabs.voiceId,
-    modelId: config.elevenlabs.modelId,
-  };
+function createTts(
+  config: TelephonyConfig,
+  onAudioChunk: (base64Audio: string) => void,
+  onDone: () => void,
+): TtsSession {
+  if (config.ttsProvider === "inworld") {
+    const iw = config.inworld;
+    if (!iw) throw new Error("ttsProvider is 'inworld' but inworld config is missing");
+    return createInworldTtsSession(
+      { apiKey: iw.apiKey, voiceId: iw.voiceId, modelId: iw.modelId },
+      onAudioChunk,
+      onDone,
+    );
+  }
+  return createTtsSession(
+    { apiKey: config.elevenlabs.apiKey, voiceId: config.elevenlabs.voiceId, modelId: config.elevenlabs.modelId },
+    onAudioChunk,
+    onDone,
+  );
 }
 
 // Create ASR callbacks wired to barge-in + utterance handling
@@ -78,8 +93,8 @@ export function speakGreeting(session: CallSession, config: TelephonyConfig): vo
     session.state = "speaking";
     session.vad?.reset();
     session.bargeIn?.reset();
-    const greeting = createTtsSession(
-      ttsConfigFrom(config),
+    const greeting = createTts(
+      config,
       (base64Audio) => session.transport.sendAudio(session.streamSid, base64Audio),
       () => {
         console.log(dim("  [greeting] Done"));
@@ -120,8 +135,8 @@ export async function processUtterance(
   let firstTokenAt = 0;
   let firstTtsAt = 0;
 
-  const tts = createTtsSession(
-    ttsConfigFrom(config),
+  const tts = createTts(
+    config,
     (base64Audio) => {
       if (session.turnCount !== thisTurn) return;
       if (!firstTtsAt) {

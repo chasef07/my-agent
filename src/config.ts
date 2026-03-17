@@ -19,6 +19,7 @@ interface Config {
 export interface TelephonyConfig {
   enabled: boolean;
   port: number;
+  ttsProvider?: "elevenlabs" | "inworld"; // defaults to "elevenlabs"
   twilio: {
     accountSid: string;      // Twilio Account SID (starts with AC)
     authToken: string;       // Twilio Auth Token
@@ -28,6 +29,11 @@ export interface TelephonyConfig {
     apiKey: string;          // ElevenLabs API key
     voiceId: string;         // ElevenLabs voice ID
     modelId: string;         // ElevenLabs model (e.g. eleven_turbo_v2_5)
+  };
+  inworld?: {
+    apiKey: string;          // Inworld API key (Basic auth)
+    voiceId: string;         // Inworld voice ID (e.g. "Ashley")
+    modelId: string;         // Inworld model (e.g. "inworld-tts-1.5-mini")
   };
   asr: {
     provider: "elevenlabs";  // ASR provider
