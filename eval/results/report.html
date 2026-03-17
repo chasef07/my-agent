@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AutoVoiceEvals Report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0d1117; color: #c9d1d9; margin: 0; padding: 20px; }
+  h1 { color: #58a6ff; text-align: center; }
+  h2 { color: #8b949e; margin-top: 40px; }
+  .chart-container { background: #161b22; border-radius: 8px; padding: 20px; margin: 20px 0; max-width: 900px; margin-left: auto; margin-right: auto; }
+  canvas { max-height: 400px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; max-width: 900px; margin: 20px auto; }
+  .stat { background: #161b22; border-radius: 8px; padding: 16px; text-align: center; }
+  .stat .value { font-size: 2em; font-weight: bold; color: #58a6ff; }
+  .stat .label { color: #8b949e; font-size: 0.85em; margin-top: 4px; }
+  .failures { max-width: 900px; margin: 20px auto; }
+  .failure-bar { display: flex; align-items: center; margin: 4px 0; }
+  .failure-bar .name { width: 200px; text-align: right; padding-right: 12px; font-size: 0.85em; color: #8b949e; }
+  .failure-bar .bar { background: #da3633; height: 20px; border-radius: 3px; min-width: 4px; }
+  .failure-bar .count { padding-left: 8px; font-size: 0.85em; }
+  table { width: 100%; max-width: 900px; margin: 20px auto; border-collapse: collapse; }
+  th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #21262d; font-size: 0.85em; }
+  th { color: #8b949e; }
+  .keep { color: #3fb950; }
+  .discard { color: #da3633; }
+</style>
+</head>
+<body>
+<h1>AutoVoiceEvals Report</h1>
+<p style="text-align:center;color:#8b949e">15 Experiments, 1 Kept Improvements</p>
+
+<div class="stats">
+  <div class="stat"><div class="value">0.756</div><div class="label">Baseline Score</div></div>
+  <div class="stat"><div class="value">0.767</div><div class="label">Best Score</div></div>
+  <div class="stat"><div class="value">15</div><div class="label">Experiments</div></div>
+  <div class="stat"><div class="value">1</div><div class="label">Kept</div></div>
+  <div class="stat"><div class="value">15</div><div class="label">Failure Modes</div></div>
+</div>
+
+<div class="chart-container">
+  <h2 style="margin-top:0">Score Progression</h2>
+  <canvas id="progressionChart"></canvas>
+</div>
+
+<div class="chart-container">
+  <h2 style="margin-top:0">Keep / Discard Decisions</h2>
+  <canvas id="deltaChart"></canvas>
+</div>
+
+<div class="chart-container">
+  <h2 style="margin-top:0">Prompt Evolution (keeps only)</h2>
+  <canvas id="evolutionChart"></canvas>
+</div>
+
+<div class="failures">
+  <h2>Top Failure Modes</h2>
+  <div class="failure-bar"><span class="name">SYSTEM_ERROR</span><div class="bar" style="width:300px"></div><span class="count">19</span></div>
+  <div class="failure-bar"><span class="name">TOOL_MISUSE</span><div class="bar" style="width:237px"></div><span class="count">15</span></div>
+  <div class="failure-bar"><span class="name">TECHNICAL_ERROR</span><div class="bar" style="width:189px"></div><span class="count">12</span></div>
+  <div class="failure-bar"><span class="name">STACKED_QUESTIONS</span><div class="bar" style="width:126px"></div><span class="count">8</span></div>
+  <div class="failure-bar"><span class="name">KNOWLEDGE_HALLUCINATION</span><div class="bar" style="width:111px"></div><span class="count">7</span></div>
+  <div class="failure-bar"><span class="name">QUESTION_STACKING</span><div class="bar" style="width:111px"></div><span class="count">7</span></div>
+  <div class="failure-bar"><span class="name">SKILL_NOT_READ</span><div class="bar" style="width:111px"></div><span class="count">7</span></div>
+  <div class="failure-bar"><span class="name">WORKFLOW_VIOLATION</span><div class="bar" style="width:111px"></div><span class="count">7</span></div>
+  <div class="failure-bar"><span class="name">MARKDOWN_FORMATTING</span><div class="bar" style="width:95px"></div><span class="count">6</span></div>
+  <div class="failure-bar"><span class="name">SYNTAX_ERROR</span><div class="bar" style="width:79px"></div><span class="count">5</span></div>
+  <div class="failure-bar"><span class="name">PROTOCOL_VIOLATION</span><div class="bar" style="width:79px"></div><span class="count">5</span></div>
+  <div class="failure-bar"><span class="name">PERFORMATIVE_LANGUAGE</span><div class="bar" style="width:79px"></div><span class="count">5</span></div>
+  <div class="failure-bar"><span class="name">PERFORMATIVE_FILLER</span><div class="bar" style="width:79px"></div><span class="count">5</span></div>
+  <div class="failure-bar"><span class="name">UNRESPONSIVE</span><div class="bar" style="width:79px"></div><span class="count">5</span></div>
+  <div class="failure-bar"><span class="name">TOOL_SYNTAX_ERROR</span><div class="bar" style="width:79px"></div><span class="count">5</span></div>
+</div>
+
+<h2 style="max-width:900px;margin:40px auto 10px">Experiment Log</h2>
+<table>
+  <tr><th>#</th><th>Status</th><th>Score</th><th>Delta</th><th>Chars</th><th>Description</th></tr>
+  <tr><td>0</td><td class="keep">baseline</td><td>0.756</td><td>—</td><td>13119</td><td>baseline</td></tr>
+  <tr><td>1</td><td class="discard">discard</td><td>0.752</td><td>-0.005</td><td>13359</td><td>Strengthen the skills-first instruction by making it more specific and</td></tr>
+  <tr><td>2</td><td class="discard">discard</td><td>0.645</td><td>-0.111</td><td>13398</td><td>Add explicit instruction to study tool syntax before every tool call t</td></tr>
+  <tr><td>3</td><td class="discard">discard</td><td>0.627</td><td>-0.130</td><td>13371</td><td>Add explicit instruction to read the relevant skill file immediately b</td></tr>
+  <tr><td>4</td><td class="discard">discard</td><td>0.756</td><td>+0.000</td><td>13279</td><td>Add explicit instruction that amd commands must be run through the bas</td></tr>
+  <tr><td>5</td><td class="discard">discard</td><td>0.752</td><td>-0.005</td><td>13341</td><td>Add explicit instruction to run amd commands through bash tool and che</td></tr>
+  <tr><td>6</td><td class="discard">discard</td><td>0.698</td><td>-0.058</td><td>13169</td><td>Add explicit prohibition against question stacking in the Core Truths </td></tr>
+  <tr><td>7</td><td class="discard">discard</td><td>0.745</td><td>-0.011</td><td>13083</td><td>Add explicit requirement to read relevant skill file before every acti</td></tr>
+  <tr><td>8</td><td class="discard">discard</td><td>0.741</td><td>-0.016</td><td>13391</td><td>Add explicit instruction to check amd CLI syntax in skill file before </td></tr>
+  <tr><td>9</td><td class="discard">discard</td><td>0.698</td><td>-0.058</td><td>12969</td><td>Remove verbose, performative language patterns and add explicit instru</td></tr>
+  <tr><td>10</td><td class="discard">discard</td><td>0.694</td><td>-0.063</td><td>13426</td><td>Add explicit instruction to verify tool syntax in skill files before m</td></tr>
+  <tr><td>11</td><td class="discard">discard</td><td>0.725</td><td>-0.031</td><td>13205</td><td>Move the skills-first instruction to the very beginning of SOUL.md to </td></tr>
+  <tr><td>12</td><td class="keep">keep</td><td>0.767</td><td>+0.011</td><td>13259</td><td>Add explicit requirement to read skill files AND verify exact command </td></tr>
+  <tr><td>13</td><td class="discard">discard</td><td>0.677</td><td>-0.080</td><td>13646</td><td>Add explicit prohibition against using bash commands when amd CLI comm</td></tr>
+  <tr><td>14</td><td class="discard">discard</td><td>0.741</td><td>-0.016</td><td>13370</td><td>Add explicit prohibition against running any commands until after read</td></tr>
+  <tr><td>15</td><td class="discard">discard</td><td>0.694</td><td>-0.063</td><td>13458</td><td>Add explicit tool verification workflow to prevent bash command errors</td></tr>
+</table>
+
+<script>
+// Score Progression
+new Chart(document.getElementById('progressionChart'), {
+  type: 'line',
+  data: {
+    labels: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
+    datasets: [
+      { label: 'Running best', data: [0.75625,0.75625,0.75625,0.75625,0.75625,0.75625,0.75625,0.75625,0.75625,0.75625,0.75625,0.75625,0.7671874999999999,0.7671874999999999,0.7671874999999999,0.7671874999999999], borderColor: '#3fb950', backgroundColor: '#3fb95033', fill: true, stepped: true, pointRadius: 0 },
+      { label: 'Kept', data: [0.75625,null,null,null,null,null,null,null,null,null,null,null,0.7671874999999999,null,null,null], borderColor: '#3fb950', backgroundColor: '#3fb950', pointRadius: 6, showLine: false },
+      { label: 'Discarded', data: [null,0.7515625,0.6453125,0.6265624999999999,0.75625,0.7515624999999999,0.6984374999999999,0.7453125,0.740625,0.6984374999999999,0.69375,0.725,null,0.6765625000000001,0.740625,0.69375], borderColor: '#8b949e', backgroundColor: '#8b949e', pointRadius: 5, showLine: false },
+    ]
+  },
+  options: { responsive: true, scales: { y: { min: 0.6, max: 1.0, ticks: { color: '#8b949e' }, grid: { color: '#21262d' } }, x: { title: { display: true, text: 'Experiment #', color: '#8b949e' }, ticks: { color: '#8b949e' }, grid: { color: '#21262d' } } }, plugins: { legend: { labels: { color: '#c9d1d9' } } } }
+});
+
+// Keep/Discard Bars
+const deltaData = [{"label":"exp 1","delta":-0.004687499999999956,"description":"Strengthen the skills-first instruction by making it more specific and adding a mandatory verification step before any response.","status":"discard"},{"label":"exp 2","delta":-0.11093750000000002,"description":"Add explicit instruction to study tool syntax before every tool call to prevent command errors","status":"discard"},{"label":"exp 3","delta":-0.12968750000000007,"description":"Add explicit instruction to read the relevant skill file immediately before every tool call to prevent tool syntax errors and command hallucinations","status":"discard"},{"label":"exp 4","delta":0,"description":"Add explicit instruction that amd commands must be run through the bash tool, not as direct tool calls","status":"discard"},{"label":"exp 5","delta":-0.004687500000000067,"description":"Add explicit instruction to run amd commands through bash tool and check command syntax in the skill file first.","status":"discard"},{"label":"exp 6","delta":-0.057812500000000044,"description":"Add explicit prohibition against question stacking in the Core Truths section to prevent the agent from asking multiple questions in one response.","status":"discard"},{"label":"exp 7","delta":-0.010937499999999933,"description":"Add explicit requirement to read relevant skill file before every action or response to prevent skill-skipping failures","status":"discard"},{"label":"exp 8","delta":-0.015625,"description":"Add explicit instruction to check amd CLI syntax in skill file before using any tool commands to prevent invalid command usage.","status":"discard"},{"label":"exp 9","delta":-0.057812500000000044,"description":"Remove verbose, performative language patterns and add explicit instruction to use minimal confirmatory phrases before tool calls.","status":"discard"},{"label":"exp 10","delta":-0.0625,"description":"Add explicit instruction to verify tool syntax in skill files before making any tool calls to prevent command errors and system breakdowns.","status":"discard"},{"label":"exp 11","delta":-0.03125,"description":"Move the skills-first instruction to the very beginning of SOUL.md to make it the first thing the agent sees and follows","status":"discard"},{"label":"exp 12","delta":0.010937499999999933,"description":"Add explicit requirement to read skill files AND verify exact command syntax before every tool call in SOUL.md","status":"keep"},{"label":"exp 13","delta":-0.07968749999999991,"description":"Add explicit prohibition against using bash commands when amd CLI commands are needed and require reading the amd skill file first.","status":"discard"},{"label":"exp 14","delta":-0.015625,"description":"Add explicit prohibition against running any commands until after reading the skill file and verifying exact syntax.","status":"discard"},{"label":"exp 15","delta":-0.0625,"description":"Add explicit tool verification workflow to prevent bash command errors and ensure proper amd CLI usage","status":"discard"}];
+new Chart(document.getElementById('deltaChart'), {
+  type: 'bar',
+  data: {
+    labels: deltaData.map(d => d.label),
+    datasets: [{
+      data: deltaData.map(d => d.delta),
+      backgroundColor: deltaData.map(d => d.status === 'keep' ? '#3fb950' : '#da3633'),
+    }]
+  },
+  options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false }, tooltip: { callbacks: { afterLabel: (ctx) => deltaData[ctx.dataIndex].description } } }, scales: { x: { title: { display: true, text: 'Score Delta', color: '#8b949e' }, ticks: { color: '#8b949e' }, grid: { color: '#21262d' } }, y: { ticks: { color: '#8b949e' }, grid: { display: false } } } }
+});
+
+// Prompt Evolution
+const evoData = [{"label":"exp 0","chars":13119,"score":0.75625},{"label":"exp 12","chars":13259,"score":0.7671874999999999}];
+new Chart(document.getElementById('evolutionChart'), {
+  type: 'bar',
+  data: {
+    labels: evoData.map(d => d.label),
+    datasets: [
+      { label: 'Prompt length', data: evoData.map(d => d.chars), backgroundColor: '#58a6ff88', yAxisID: 'y' },
+      { label: 'Score', data: evoData.map(d => d.score), borderColor: '#da3633', backgroundColor: '#da3633', type: 'line', yAxisID: 'y1', pointRadius: 5 },
+    ]
+  },
+  options: { responsive: true, scales: { y: { title: { display: true, text: 'Prompt length (chars)', color: '#58a6ff' }, ticks: { color: '#58a6ff' }, grid: { color: '#21262d' }, position: 'left' }, y1: { title: { display: true, text: 'Score', color: '#da3633' }, ticks: { color: '#da3633' }, grid: { display: false }, position: 'right', min: 0, max: 1 }, x: { title: { display: true, text: 'Kept Experiment', color: '#8b949e' }, ticks: { color: '#8b949e' }, grid: { display: false } } }, plugins: { legend: { labels: { color: '#c9d1d9' } } } }
+});
+</script>
+</body>
+</html>

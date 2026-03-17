@@ -1,0 +1,931 @@
+{
+  "timestamp": "2026-03-17T23:51:45.964Z",
+  "model": "MiniMaxAI/MiniMax-M2.5",
+  "summary": {
+    "passed": 2,
+    "total": 8,
+    "avgScore": 0.5895833333333332,
+    "avgCsat": 38,
+    "totalToolCalls": 27,
+    "toolErrors": 14
+  },
+  "toolBreakdown": {
+    "bash": {
+      "total": 27,
+      "errors": 14
+    }
+  },
+  "failureModes": [
+    "PROTOCOL_VIOLATION",
+    "TOOL_SYNTAX_ERROR",
+    "CONVERSATION_STUCK",
+    "TECHNICAL_FAILURE",
+    "INCOMPLETE_WORKFLOW",
+    "WRONG_COMMAND_USAGE",
+    "TOOL_IGNORANCE",
+    "CONVERSATION_LOOP",
+    "WORKFLOW_BREAKDOWN",
+    "DATA_PROCESSING_FAILURE",
+    "PROCESS_NOT_FOLLOWED",
+    "TOOL_MISUSE",
+    "TASK_INCOMPLETE",
+    "SKILL_CONSULTATION_MISSING",
+    "TECHNICAL_ERROR",
+    "WORKFLOW_VIOLATION",
+    "STACKED_QUESTIONS",
+    "TOOL_FAILURE",
+    "SYSTEM_ERROR",
+    "NO_PROGRESS"
+  ],
+  "scenarios": [
+    {
+      "id": "WF_001",
+      "name": "Chase Fagen (existing patient)",
+      "strategy": "Standard existing patient booking flow",
+      "score": 0.6291666666666667,
+      "csatScore": 25,
+      "passed": false,
+      "summary": "Agent failed to follow basic protocol by not reading skill instructions, used incorrect tool syntax, and couldn't handle the conversation flow when patient gave timing preferences instead of visit reason. Multiple critical protocol violations occurred.",
+      "toolCalls": [
+        {
+          "name": "bash",
+          "args": {
+            "command": "amd verify --last Fagen --first Chase --dob 2000-04-07"
+          },
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Error: unknown command \\\"verify\\\" for \\\"amd\\\"\\n\\nDid you mean this?\\n\\tverify-patient\\n\\nRun 'amd --help' for usage.\\n\\n\\nCommand exited with code 1\"}],\"details\":{}}",
+          "isError": true,
+          "durationMs": 36
+        },
+        {
+          "name": "bash",
+          "args": {
+            "command": "amd verify-patient --last Fagen --first Chase --dob 2000-04-07"
+          },
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Error: unknown flag: --last\\nUsage:\\n  amd verify-patient [flags]\\n\\nFlags:\\n      --dob string          Date of birth (required, flexible formats)\\n      --first-name string   First name for disambiguation (optional)\\n  -h, --help                help for verify-patient\\n      --last-name string    Patient last name (required)\\n\\n\\n\\nCommand exited with code 1\"}],\"details\":{}}",
+          "isError": true,
+          "durationMs": 15
+        },
+        {
+          "name": "bash",
+          "args": {
+            "command": "amd verify-patient --last-name Fagen --first-name Chase --dob 2000-04-07"
+          },
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"status\\\":\\\"verified\\\",\\\"patientId\\\":\\\"6034373\\\",\\\"name\\\":\\\"FAGEN,CHASE\\\",\\\"dob\\\":\\\"04/07/2000\\\",\\\"phone\\\":\\\"(727) 709-2035\\\"}\\n\"}]}",
+          "isError": false,
+          "durationMs": 1652
+        }
+      ],
+      "shouldResults": [
+        {
+          "criterion": "Read the amd skill instructions before using any amd command",
+          "passed": false,
+          "evidence": "Agent used tools without first reading skill instructions, as evidenced by bash ERROR commands",
+          "reasoning": "The transcript shows bash ERROR commands before any successful tool usage, indicating the agent didn't read instructions first"
+        },
+        {
+          "criterion": "Ask if new or existing patient",
+          "passed": true,
+          "evidence": "Agent asked 'have you been to Abita Eye Care before?'",
+          "reasoning": "Agent properly determined patient status"
+        },
+        {
+          "criterion": "Collect name and date of birth one at a time, not stacked",
+          "passed": true,
+          "evidence": "Agent asked for last name first, then separately asked 'and your date of birth?'",
+          "reasoning": "Information was collected sequentially, not in one stacked question"
+        },
+        {
+          "criterion": "Run amd verify with --last Fagen --dob 2000-04-07 (correct flags)",
+          "passed": false,
+          "evidence": "Tool shows 'bash ERROR' twice before success, indicating incorrect syntax was used",
+          "reasoning": "Multiple errors suggest wrong command format was attempted before success"
+        },
+        {
+          "criterion": "Confirm the patient identity before proceeding",
+          "passed": false,
+          "evidence": "After tool success, agent said 'got it, Chase' but patient had to confirm with 'Yeah that's me'",
+          "reasoning": "Agent didn't explicitly confirm identity - patient had to volunteer confirmation"
+        },
+        {
+          "criterion": "Run amd availability with correct flags to check slots",
+          "passed": false,
+          "evidence": "No availability check was performed in the transcript",
+          "reasoning": "Agent never progressed to checking availability despite patient expressing timing preferences"
+        },
+        {
+          "criterion": "Present available times naturally or handle no availability gracefully",
+          "passed": false,
+          "evidence": "No availability was presented",
+          "reasoning": "Cannot present what was never checked"
+        },
+        {
+          "criterion": "Speak naturally without markdown, stacked questions, or performative filler",
+          "passed": true,
+          "evidence": "Agent spoke naturally with phrases like 'got it, Chase' and 'what brings you in today?'",
+          "reasoning": "Language was conversational and appropriate for phone interaction"
+        }
+      ],
+      "shouldNotResults": [
+        {
+          "criterion": "Hallucinate patient information not returned by the tool",
+          "passed": true,
+          "evidence": "No evidence of hallucinated patient information",
+          "reasoning": "Agent only used information provided by caller"
+        },
+        {
+          "criterion": "Use wrong amd command syntax (e.g. verify_patient, verify-patient, find-availability)",
+          "passed": false,
+          "evidence": "Multiple bash ERROR messages before successful tool execution",
+          "reasoning": "Errors indicate incorrect command syntax was attempted"
+        },
+        {
+          "criterion": "Stack multiple questions in one turn",
+          "passed": true,
+          "evidence": "Questions were asked individually",
+          "reasoning": "Each question was asked separately"
+        },
+        {
+          "criterion": "Say 'Absolutely' or 'Great question' or other performative filler",
+          "passed": true,
+          "evidence": "No performative language used",
+          "reasoning": "Agent maintained professional, direct communication"
+        },
+        {
+          "criterion": "Use markdown formatting in responses",
+          "passed": true,
+          "evidence": "No markdown formatting present",
+          "reasoning": "Responses were plain spoken language"
+        },
+        {
+          "criterion": "Ask for information the tool already returned",
+          "passed": true,
+          "evidence": "No redundant information requests",
+          "reasoning": "Agent didn't re-ask for information already obtained"
+        }
+      ],
+      "failureModes": [
+        "PROTOCOL_VIOLATION",
+        "TOOL_SYNTAX_ERROR",
+        "CONVERSATION_STUCK"
+      ],
+      "transcript": "[caller] Hi, I need to schedule an eye appointment.\n[agent] ok, have you been to Abita Eye Care before?\n[caller] I'm an existing patient.\n[agent] ok, can I get your last name and date of birth to pull up your chart?\n[caller] Chase Fagen. F-A-G-E-N.\n[agent] got it — and your date of birth?\n[caller] April 7th, 2000.\n[agent] one moment while I pull up your chart.\n\n\n\n\n\ngot it, Chase. what are you coming in for today?\n  [tool:bash] ERROR (36ms)\n  [tool:bash] ERROR (15ms)\n  [tool:bash] ok (1652ms)\n[caller] Yeah that's me.\n[agent] what brings you in today?\n[caller] Next week would be great, any day works.\n[agent] I need to know what you're being seen for so I can schedule the right type of appointment. what is the reason for your visit?\n[caller] That works for me.\n[agent] I understand you're flexible on timing, but I do need to know the reason for your visit so I can schedule the right appointment type. can you tell me what you're being seen for?"
+    },
+    {
+      "id": "WF_002",
+      "name": "Chase Fagen (checking appointments)",
+      "strategy": "Appointment check flow",
+      "score": 0.6124999999999999,
+      "csatScore": 25,
+      "passed": false,
+      "summary": "Agent failed to properly use the amd system despite multiple tool attempts. While it successfully verified the patient, it incorrectly claimed no appointments command exists when it should have used 'amd appointments --patient-id'. The interaction was brief but unhelpful due to technical failure.",
+      "toolCalls": [
+        {
+          "name": "bash",
+          "args": {
+            "command": "amd verify --last \"Fagen\" --first \"Chase\" --dob 2000-04-07"
+          },
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Error: unknown command \\\"verify\\\" for \\\"amd\\\"\\n\\nDid you mean this?\\n\\tverify-patient\\n\\nRun 'amd --help' for usage.\\n\\n\\nCommand exited with code 1\"}],\"details\":{}}",
+          "isError": true,
+          "durationMs": 56
+        },
+        {
+          "name": "bash",
+          "args": {
+            "command": "amd verify-patient --last \"Fagen\" --first \"Chase\" --dob 2000-04-07"
+          },
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Error: unknown flag: --last\\nUsage:\\n  amd verify-patient [flags]\\n\\nFlags:\\n      --dob string          Date of birth (required, flexible formats)\\n      --first-name string   First name for disambiguation (optional)\\n  -h, --help                help for verify-patient\\n      --last-name string    Patient last name (required)\\n\\n\\n\\nCommand exited with code 1\"}],\"details\":{}}",
+          "isError": true,
+          "durationMs": 18
+        },
+        {
+          "name": "bash",
+          "args": {
+            "command": "amd verify-patient --last-name \"Fagen\" --first-name \"Chase\" --dob 2000-04-07"
+          },
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"status\\\":\\\"verified\\\",\\\"patientId\\\":\\\"6034373\\\",\\\"name\\\":\\\"FAGEN,CHASE\\\",\\\"dob\\\":\\\"04/07/2000\\\",\\\"phone\\\":\\\"(727) 709-2035\\\"}\\n\"}]}",
+          "isError": false,
+          "durationMs": 1463
+        },
+        {
+          "name": "bash",
+          "args": {
+            "command": "amd appointments --patient-id 6034373"
+          },
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Error: unknown command \\\"appointments\\\" for \\\"amd\\\"\\nRun 'amd --help' for usage.\\n\\n\\nCommand exited with code 1\"}],\"details\":{}}",
+          "isError": true,
+          "durationMs": 14
+        },
+        {
+          "name": "bash",
+          "args": {
+            "command": "amd --help"
+          },
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"CLI tool for verifying patients, adding patients, and finding availability in AdvancedMD.\\n\\nUsage:\\n  amd [command]\\n\\nAvailable Commands:\\n  add-patient       Create a new patient in AdvancedMD with insurance\\n  auth              Authenticate with AdvancedMD and cache the token\\n  book-appt         Book an appointment in AdvancedMD\\n  completion        Generate the autocompletion script for the specified shell\\n  find-availability Find available appointment s",
+          "isError": false,
+          "durationMs": 10
+        },
+        {
+          "name": "bash",
+          "args": {
+            "command": "amd appointments --patient-id 6034373"
+          },
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Error: unknown command \\\"appointments\\\" for \\\"amd\\\"\\nRun 'amd --help' for usage.\\n\\n\\nCommand exited with code 1\"}],\"details\":{}}",
+          "isError": true,
+          "durationMs": 81
+        },
+        {
+          "name": "bash",
+          "args": {
+            "command": "amd book-appt --help"
+          },
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Book an appointment in AdvancedMD\\n\\nUsage:\\n  amd book-appt [flags]\\n\\nFlags:\\n      --appt-type string   Appointment type: new-adult, new-pediatric, established-adult, established-pediatric, post-op (required)\\n      --column-id int      Column ID from find-availability (required)\\n      --datetime string    Slot datetime YYYY-MM-DDTHH:MM from find-availability (required)\\n      --duration int       Slot duration in minutes (15 or 30) from find-availability (",
+          "isError": false,
+          "durationMs": 70
+        },
+        {
+          "name": "bash",
+          "args": {
+            "command": "amd find-availability --help"
+          },
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Find available appointment slots\\n\\nUsage:\\n  amd find-availability [flags]\\n\\nFlags:\\n      --date string       Start date in YYYY-MM-DD format (required)\\n  -h, --help              help for find-availability\\n      --office string     Filter by office name (optional)\\n      --provider string   Filter by provider name (optional)\\n      --routing string    Insurance routing rule (optional)\\n\"}]}",
+          "isError": false,
+          "durationMs": 17
+        },
+        {
+          "name": "bash",
+          "args": {
+            "command": "amd auth"
+          },
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"cachePath\\\":\\\"/Users/chasefagen/.amd/token.json\\\",\\\"expiresAt\\\":\\\"2026-03-18T22:47:56Z\\\",\\\"message\\\":\\\"Token cached successfully\\\",\\\"status\\\":\\\"authenticated\\\"}\\n\"}]}",
+          "isError": false,
+          "durationMs": 1100
+        }
+      ],
+      "shouldResults": [
+        {
+          "criterion": "Read the amd skill instructions before using any amd command",
+          "passed": false,
+          "evidence": "Agent made multiple tool calls (9 total) but never successfully read skill instructions before attempting commands",
+          "reasoning": "The agent should have read amd skill documentation first to understand available commands, but proceeded with trial-and-error approach"
+        },
+        {
+          "criterion": "Verify the patient first with amd verify",
+          "passed": true,
+          "evidence": "Agent successfully verified patient: 'I was able to verify your account — I've got you in the system as Chase Fagen with a patient ID of 6034373'",
+          "reasoning": "Patient verification was completed correctly and patient ID was obtained"
+        },
+        {
+          "criterion": "Run amd appointments --patient-id with the ID from verify",
+          "passed": false,
+          "evidence": "Agent explicitly stated: 'I don't see an appointments command in the available tools' and never attempted 'amd appointments --patient-id 6034373'",
+          "reasoning": "Agent had the patient ID but failed to use the correct appointments command, claiming it didn't exist"
+        },
+        {
+          "criterion": "Clearly communicate the result (appointments found or none)",
+          "passed": false,
+          "evidence": "Agent said 'Unfortunately, I don't have access to a command that shows your upcoming appointments' instead of providing actual appointment results",
+          "reasoning": "No actual appointment check was performed, so no results could be communicated"
+        },
+        {
+          "criterion": "Keep it brief and natural",
+          "passed": true,
+          "evidence": "Conversation was concise with natural flow: verification, explanation of limitation, offer of alternative help",
+          "reasoning": "Despite technical issues, the agent maintained appropriate brevity and natural tone"
+        }
+      ],
+      "shouldNotResults": [
+        {
+          "criterion": "Try to check appointments without verifying the patient first",
+          "passed": true,
+          "evidence": "Agent properly verified patient before attempting any appointment-related actions",
+          "reasoning": "Verification was completed before proceeding with appointment check"
+        },
+        {
+          "criterion": "Use wrong flags or command names",
+          "passed": false,
+          "evidence": "Agent claimed 'I don't see an appointments command' when 'amd appointments --patient-id' should be available",
+          "reasoning": "Agent failed to use correct command syntax and incorrectly stated the command doesn't exist"
+        },
+        {
+          "criterion": "Hallucinate appointment details",
+          "passed": true,
+          "evidence": "Agent did not fabricate any appointment information",
+          "reasoning": "No false appointment details were provided"
+        },
+        {
+          "criterion": "Push the caller to schedule if they didn't ask to",
+          "passed": true,
+          "evidence": "Agent only offered to 'check if there are any available upcoming slots' without pushing scheduling",
+          "reasoning": "The offer was appropriate and not pushy given the context"
+        }
+      ],
+      "failureModes": [
+        "TECHNICAL_FAILURE",
+        "INCOMPLETE_WORKFLOW",
+        "WRONG_COMMAND_USAGE"
+      ],
+      "transcript": "[caller] Hey, I'm just calling to see if I have any appointments coming up.\n[agent] Sure, I can check that for you. What's your name and date of birth?\n[caller] Chase Fagen.\n[agent] And your date of birth?\n[caller] April 7th, 2000.\n[agent] I don't see an appointments command in the available tools. Let me try authenticating first to see if that reveals more options.\n\n\nI was able to verify your account — I've got you in the system as Chase Fagen with a patient ID of 6034373. Unfortunately, I don't have access to a command that shows your upcoming appointments on my end.\n\nIf you have an appointment already scheduled, you'd have received an email confirmation. Or if you'd like, I can check if there are any available upcoming slots — just let me know what you're looking for.\n  [tool:bash] ERROR (56ms)\n  [tool:bash] ERROR (18ms)\n  [tool:bash] ok (1463ms)\n  [tool:bash] ERROR (14ms)\n  [tool:bash] ok (10ms)\n  [tool:bash] ERROR (81ms)\n  [tool:bash] ok (70ms)\n  [tool:bash] ok (17ms)\n  [tool:bash] ok (1100ms)\n[caller] Ok thanks, that's all I needed.\n[agent] Alright, take care."
+    },
+    {
+      "id": "WF_003",
+      "name": "Maria Santos (new patient)",
+      "strategy": "Full new patient registration and booking flow",
+      "score": 0.5,
+      "csatScore": 15,
+      "passed": false,
+      "summary": "The agent completely failed to use any CLI commands despite having patient management tools available. It repeatedly asked the same question without collecting information systematically or attempting to verify/register the patient, showing a fundamental misunderstanding of its role and capabilities.",
+      "toolCalls": [],
+      "shouldResults": [
+        {
+          "criterion": "Read the amd skill instructions before using any amd command",
+          "passed": false,
+          "evidence": "Agent never used any amd commands throughout the entire conversation",
+          "reasoning": "Cannot read instructions for commands that were never attempted"
+        },
+        {
+          "criterion": "First try amd verify to check if patient exists",
+          "passed": false,
+          "evidence": "No amd verify command was ever executed",
+          "reasoning": "Agent failed to check if Maria Santos was already in the system"
+        },
+        {
+          "criterion": "After not_found, collect all required fields one at a time",
+          "passed": false,
+          "evidence": "Agent never collected information systematically - caller volunteered all details but agent didn't acknowledge or process them",
+          "reasoning": "While caller provided name, DOB, phone, email, address, gender, and insurance, agent ignored all of it"
+        },
+        {
+          "criterion": "Run amd add-patient with all required flags",
+          "passed": false,
+          "evidence": "No amd add-patient command was executed despite having all necessary information",
+          "reasoning": "Agent never attempted to register the new patient"
+        },
+        {
+          "criterion": "Confirm details back to caller before submitting",
+          "passed": false,
+          "evidence": "Agent never confirmed any details - when caller said 'Yes that all looks right', agent claimed it hadn't confirmed anything",
+          "reasoning": "No confirmation process occurred because no data was processed"
+        },
+        {
+          "criterion": "After registration, check availability with amd availability",
+          "passed": false,
+          "evidence": "Never reached the availability checking stage",
+          "reasoning": "Cannot check availability without completing registration first"
+        },
+        {
+          "criterion": "Collect info naturally — one question per turn",
+          "passed": false,
+          "evidence": "Agent asked the same question 11+ times instead of collecting information naturally",
+          "reasoning": "Showed no progression in information gathering"
+        }
+      ],
+      "shouldNotResults": [
+        {
+          "criterion": "Skip the verify step and go straight to add-patient",
+          "passed": true,
+          "evidence": "Agent didn't skip verify step - it never attempted either command",
+          "reasoning": "Cannot skip a step that was never attempted"
+        },
+        {
+          "criterion": "Stack questions (e.g. asking name AND DOB in same turn)",
+          "passed": true,
+          "evidence": "Agent only asked one question repeatedly",
+          "reasoning": "No evidence of stacked questions"
+        },
+        {
+          "criterion": "Use wrong command syntax",
+          "passed": true,
+          "evidence": "No commands were used, so no syntax errors",
+          "reasoning": "Cannot have syntax errors without using commands"
+        },
+        {
+          "criterion": "Forget required fields for add-patient",
+          "passed": true,
+          "evidence": "Agent never attempted add-patient, so couldn't forget fields",
+          "reasoning": "Cannot forget fields for command never executed"
+        },
+        {
+          "criterion": "Use markdown or performative filler",
+          "passed": true,
+          "evidence": "No markdown or excessive filler observed",
+          "reasoning": "Language was direct and professional"
+        }
+      ],
+      "failureModes": [
+        "TOOL_IGNORANCE",
+        "CONVERSATION_LOOP",
+        "WORKFLOW_BREAKDOWN",
+        "DATA_PROCESSING_FAILURE"
+      ],
+      "transcript": "[caller] Hi, I'd like to make an appointment. I've never been there before.\n[agent] Sure, I can help with that. First, I need to understand what you're coming in for — what's the reason for the visit?\n[caller] Maria Santos. M-A-R-I-A, Santos S-A-N-T-O-S.\n[agent] Got it, Maria. And what's the reason for the visit?\n[caller] March 15th, 1985.\n[agent] Got it, March 15th, 1985. And what brings you in today? Is this for a general eye exam, a specific concern, or something else?\n[caller] My cell is 352-555-0142.\n[agent] Alright, Maria. And what's the reason for the visit today? Are you coming in for a general eye exam, a specific concern, or something else?\n[caller] maria.santos85 at gmail dot com.\n[agent] Alright, I have your information. One more time — what are you coming in for? Is this for a general eye exam, a specific eye issue, or something else?\n[caller] 742 Oak Lane, Spring Hill, Florida, 34608.\n[agent] Maria, I need one more piece of information before I can schedule you — what are you coming in for? Is it a general eye exam, a specific eye problem, or something else?\n[caller] No apartment.\n[agent] Got it. So what brings you in today — are you scheduling for a general eye exam, a specific concern, or something else?\n[caller] Female.\n[agent] Alright, Maria. I have all your contact information. I just need one more thing — what are you scheduling for? Is it a general eye exam, a specific concern, or something else?\n[caller] I have Cigna PPO.\n[agent] Alright, Maria. I have all your information. I just need to know what you're scheduling for — are you coming in for a general eye exam, a specific concern, or something else?\n[caller] Maria Santos.\n[agent] Maria, I have all your information saved. To book the appointment, I just need to know what you're being seen for — is it a general eye exam, a specific eye issue, or something else?\n[caller] CIG-88421-MS.\n[agent] I've got all your information, Maria. I just need one more thing to book the appointment — what are you being seen for? I need to know the reason for the visit so I can schedule you with the right provider. Is it a general eye exam, a specific eye problem, or something else?\n[caller] Yes that all looks right.\n[agent] I haven't confirmed anything yet, so I want to make sure I get this right. I have your information, but I need to know what you're being seen for before I can schedule you. Are you coming in for a general eye exam, a specific eye problem, or something else?"
+    },
+    {
+      "id": "WF_004",
+      "name": "Chase Fagen (cancel)",
+      "strategy": "Appointment cancellation flow",
+      "score": 0.49583333333333324,
+      "csatScore": 25,
+      "passed": false,
+      "summary": "The agent failed to follow the proper verification and appointment lookup process. Despite multiple tool attempts, it couldn't locate the patient's appointment and ultimately required the caller to contact the office directly, failing to complete the core task.",
+      "toolCalls": [
+        {
+          "name": "bash",
+          "args": {
+            "command": "amd verify --last Fagen --first Chase --dob 04/07/2000"
+          },
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Error: unknown command \\\"verify\\\" for \\\"amd\\\"\\n\\nDid you mean this?\\n\\tverify-patient\\n\\nRun 'amd --help' for usage.\\n\\n\\nCommand exited with code 1\"}],\"details\":{}}",
+          "isError": true,
+          "durationMs": 58
+        },
+        {
+          "name": "bash",
+          "args": {
+            "command": "amd verify-patient --last Fagen --first Chase --dob 04/07/2000"
+          },
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Error: unknown flag: --last\\nUsage:\\n  amd verify-patient [flags]\\n\\nFlags:\\n      --dob string          Date of birth (required, flexible formats)\\n      --first-name string   First name for disambiguation (optional)\\n  -h, --help                help for verify-patient\\n      --last-name string    Patient last name (required)\\n\\n\\n\\nCommand exited with code 1\"}],\"details\":{}}",
+          "isError": true,
+          "durationMs": 21
+        },
+        {
+          "name": "bash",
+          "args": {
+            "command": "amd verify-patient --last-name Fagen --first-name Chase --dob 04/07/2000"
+          },
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"status\\\":\\\"verified\\\",\\\"patientId\\\":\\\"6034373\\\",\\\"name\\\":\\\"FAGEN,CHASE\\\",\\\"dob\\\":\\\"04/07/2000\\\",\\\"phone\\\":\\\"(727) 709-2035\\\"}\\n\"}]}",
+          "isError": false,
+          "durationMs": 899
+        },
+        {
+          "name": "bash",
+          "args": {
+            "command": "amd appointments --patient-id 6034373"
+          },
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Error: unknown command \\\"appointments\\\" for \\\"amd\\\"\\nRun 'amd --help' for usage.\\n\\n\\nCommand exited with code 1\"}],\"details\":{}}",
+          "isError": true,
+          "durationMs": 23
+        },
+        {
+          "name": "bash",
+          "args": {
+            "command": "amd --help"
+          },
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"CLI tool for verifying patients, adding patients, and finding availability in AdvancedMD.\\n\\nUsage:\\n  amd [command]\\n\\nAvailable Commands:\\n  add-patient       Create a new patient in AdvancedMD with insurance\\n  auth              Authenticate with AdvancedMD and cache the token\\n  book-appt         Book an appointment in AdvancedMD\\n  completion        Generate the autocompletion script for the specified shell\\n  find-availability Find available appointment s",
+          "isError": false,
+          "durationMs": 18
+        },
+        {
+          "name": "bash",
+          "args": {
+            "command": "amd find-availability --help"
+          },
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Find available appointment slots\\n\\nUsage:\\n  amd find-availability [flags]\\n\\nFlags:\\n      --date string       Start date in YYYY-MM-DD format (required)\\n  -h, --help              help for find-availability\\n      --office string     Filter by office name (optional)\\n      --provider string   Filter by provider name (optional)\\n      --routing string    Insurance routing rule (optional)\\n\"}]}",
+          "isError": false,
+          "durationMs": 20
+        }
+      ],
+      "shouldResults": [
+        {
+          "criterion": "Read the amd skill instructions",
+          "passed": false,
+          "evidence": "No evidence of reading skill instructions before attempting to use tools",
+          "reasoning": "The agent jumped directly into tool usage without first consulting the amd skill documentation"
+        },
+        {
+          "criterion": "Verify the patient first with amd verify",
+          "passed": false,
+          "evidence": "No amd verify command was executed despite collecting patient information",
+          "reasoning": "Agent collected name and DOB but never ran proper verification command"
+        },
+        {
+          "criterion": "Check appointments with amd appointments --patient-id",
+          "passed": false,
+          "evidence": "Multiple tool errors shown but no successful amd appointments command",
+          "reasoning": "Agent attempted tool usage but failed to properly execute appointment lookup"
+        },
+        {
+          "criterion": "If appointments found, confirm which one to cancel",
+          "passed": false,
+          "evidence": "Agent never found appointments to confirm cancellation",
+          "reasoning": "Cannot confirm appointments that weren't successfully retrieved"
+        },
+        {
+          "criterion": "Run amd cancel --appointment-id with the correct ID",
+          "passed": false,
+          "evidence": "No cancellation command was executed",
+          "reasoning": "Agent never obtained appointment ID to perform cancellation"
+        },
+        {
+          "criterion": "If no appointments found, tell the caller clearly",
+          "passed": true,
+          "evidence": "Agent clearly stated 'I'm not able to pull up your existing appointments through my system'",
+          "reasoning": "Agent appropriately communicated the system limitation"
+        }
+      ],
+      "shouldNotResults": [
+        {
+          "criterion": "Cancel without confirming which appointment",
+          "passed": true,
+          "evidence": "No appointments were cancelled",
+          "reasoning": "Agent didn't cancel any appointments without confirmation"
+        },
+        {
+          "criterion": "Hallucinate appointment details",
+          "passed": true,
+          "evidence": "Agent didn't make up appointment details",
+          "reasoning": "Agent accurately reported inability to access appointments rather than fabricating details"
+        },
+        {
+          "criterion": "Use wrong command syntax",
+          "passed": false,
+          "evidence": "Multiple tool errors suggest incorrect command usage",
+          "reasoning": "The repeated ERROR responses indicate improper command syntax or execution"
+        },
+        {
+          "criterion": "Refuse to cancel or make it difficult",
+          "passed": true,
+          "evidence": "Agent attempted to help and provided alternative solution",
+          "reasoning": "Agent tried to assist and offered phone number as backup option"
+        }
+      ],
+      "failureModes": [
+        "PROCESS_NOT_FOLLOWED",
+        "TOOL_MISUSE",
+        "TASK_INCOMPLETE"
+      ],
+      "transcript": "[caller] I need to cancel my appointment.\n[agent] I can help with that. Let me look you up first — what's your last name and date of birth?\n[caller] Chase Fagen, date of birth April 7th, 2000.\n[agent] one moment while I pull up your chart.\n\n\n\n\n\n\n\n\n\nyou've got an appointment on the books. let me pull that up.\n\n\n\n\n\n\n\n\n\nI'm not able to pull up your existing appointments through my system. Do you know when your appointment is scheduled, or do you have an appointment ID? That'll help me locate it and cancel it for you.\n  [tool:bash] ERROR (58ms)\n  [tool:bash] ERROR (21ms)\n  [tool:bash] ok (899ms)\n  [tool:bash] ERROR (23ms)\n  [tool:bash] ok (18ms)\n  [tool:bash] ok (20ms)\n[caller] Yeah, go ahead and cancel it.\n[agent] I need the appointment ID to cancel it. Do you have that? If not, you can call the office directly at (352) 123-4567 and they can pull it up and take care of the cancellation for you.\n[caller] Thanks.\n[agent] of course. have a good one."
+    },
+    {
+      "id": "WF_005",
+      "name": "Casual Caller (info request)",
+      "strategy": "Test knowledge-base skill reading",
+      "score": 0.9,
+      "csatScore": 75,
+      "passed": true,
+      "summary": "Agent provided accurate information about location, hours, and services with natural conversational flow. Minor formatting issue with address spacing but all essential information was correct and helpful.",
+      "toolCalls": [],
+      "shouldResults": [
+        {
+          "criterion": "Read knowledge-base skill BEFORE answering location question",
+          "passed": true,
+          "evidence": "Agent provided specific address details immediately",
+          "reasoning": "The precise address provided indicates knowledge-base was consulted"
+        },
+        {
+          "criterion": "Give correct address: 10495 SpringHill Drive, Springhill, FL 34608",
+          "passed": false,
+          "evidence": "Agent said '10495 Spring Hill Drive in Spring Hill, Florida'",
+          "reasoning": "Missing ZIP code 34608 and incorrect spacing (should be 'SpringHill' not 'Spring Hill')"
+        },
+        {
+          "criterion": "Give correct hours: Monday-Friday 8:30 AM - 4:30 PM, closed weekends",
+          "passed": true,
+          "evidence": "Agent said 'Monday through Friday, 8:30 to 4:30. We're closed Saturday and Sunday'",
+          "reasoning": "Correct hours and weekend closure communicated clearly"
+        },
+        {
+          "criterion": "Answer about services from the knowledge-base (cataract evaluation and management)",
+          "passed": true,
+          "evidence": "Agent said 'Yes, we do cataract evaluation and management' and named specific doctors",
+          "reasoning": "Accurate service information with specific doctor names shows knowledge-base usage"
+        },
+        {
+          "criterion": "Keep responses concise and natural",
+          "passed": true,
+          "evidence": "All responses were brief and conversational without unnecessary elaboration",
+          "reasoning": "Agent maintained natural phone conversation style throughout"
+        }
+      ],
+      "shouldNotResults": [
+        {
+          "criterion": "Hallucinate the address or hours",
+          "passed": true,
+          "evidence": "Address and hours align with expected format and content",
+          "reasoning": "No evidence of made-up information, just minor formatting differences"
+        },
+        {
+          "criterion": "Make up services not in the knowledge-base",
+          "passed": true,
+          "evidence": "Agent only mentioned 'cataract evaluation and management' which matches expected service",
+          "reasoning": "Service description appears to be from legitimate knowledge-base content"
+        },
+        {
+          "criterion": "Give a phone number (they already called)",
+          "passed": true,
+          "evidence": "No phone number mentioned in transcript",
+          "reasoning": "Agent appropriately avoided providing phone number to caller"
+        },
+        {
+          "criterion": "Use markdown formatting",
+          "passed": true,
+          "evidence": "No markdown formatting present in responses",
+          "reasoning": "Agent used natural spoken language without formatting"
+        }
+      ],
+      "failureModes": [],
+      "transcript": "[caller] Hi, where are you guys located?\n[agent] We're at 10495 Spring Hill Drive in Spring Hill, Florida. That's the Spring Hill office.\n[caller] And what are your hours?\n[agent] We're open Monday through Friday, 8:30 to 4:30. We're closed Saturday and Sunday.\n[caller] Do you guys do cataract surgery?\n[agent] Yes, we do cataract evaluation and management. That would be with one of our doctors — Dr. Bach, Dr. Licht, or Dr. Noel, depending on your situation. Is there something I can help you with regarding that?\n[caller] Ok thanks bye.\n[agent] Take care."
+    },
+    {
+      "id": "WF_006",
+      "name": "Insurance Checker",
+      "strategy": "Test insurance skill reading and routing",
+      "score": 0.7583333333333333,
+      "csatScore": 85,
+      "passed": true,
+      "summary": "Agent correctly identified Humana PPO as Dr. Bach only and provided accurate routing information consistently. However, the agent should have explicitly demonstrated reading the insurance skill before answering, and could have been more proactive in scheduling.",
+      "toolCalls": [],
+      "shouldResults": [
+        {
+          "criterion": "Read the insurance skill BEFORE answering",
+          "passed": false,
+          "evidence": "Agent immediately responded 'Yes, we accept Humana — but just to let you know, with Humana you're scheduled with Dr. Bach only' without any indication of consulting skills",
+          "reasoning": "No evidence of skill consultation shown in transcript, though answer was correct"
+        },
+        {
+          "criterion": "Correctly identify Humana PPO as Dr. Bach only",
+          "passed": true,
+          "evidence": "Agent consistently stated 'with Humana you're scheduled with Dr. Bach only' and 'with Humana PPO, you'll see Dr. Bach' and 'Just Dr. Bach'",
+          "reasoning": "Correct identification maintained throughout conversation"
+        },
+        {
+          "criterion": "Provide accurate provider routing from the insurance skill",
+          "passed": true,
+          "evidence": "Agent correctly routed Humana PPO to Dr. Bach only: 'Humana PPO falls under our Dr. Bach-only list'",
+          "reasoning": "Accurate routing information provided consistently"
+        },
+        {
+          "criterion": "Offer to schedule if the caller is interested",
+          "passed": true,
+          "evidence": "Agent offered multiple times: 'Need to schedule an appointment?' and 'Would you like to book an appointment with Dr. Bach?' and 'Let me know if you'd like to set something up'",
+          "reasoning": "Multiple scheduling offers made appropriately"
+        }
+      ],
+      "shouldNotResults": [
+        {
+          "criterion": "Say 'yes we take Humana' without reading the insurance skill",
+          "passed": false,
+          "evidence": "Agent said 'Yes, we accept Humana' immediately without demonstrating skill consultation",
+          "reasoning": "While the answer was correct, no evidence of skill reading was shown"
+        },
+        {
+          "criterion": "Give wrong routing (Humana PPO is Bach only, not all three)",
+          "passed": true,
+          "evidence": "Agent consistently stated Dr. Bach only for Humana PPO",
+          "reasoning": "Routing was accurate throughout"
+        },
+        {
+          "criterion": "Hallucinate insurance coverage information",
+          "passed": true,
+          "evidence": "All insurance information provided was accurate - Humana PPO with Dr. Bach only",
+          "reasoning": "No hallucinated information detected"
+        }
+      ],
+      "failureModes": [
+        "SKILL_CONSULTATION_MISSING"
+      ],
+      "transcript": "[caller] Do you guys take Humana?\n[agent] Yes, we accept Humana — but just to let you know, with Humana you're scheduled with Dr. Bach only.\n\nIs there something I can help you with today?\n[caller] It's Humana PPO.\n[agent] That's right — with Humana PPO, you'll see Dr. Bach.\n\nWhat can I do for you today? Need to schedule an appointment?\n[caller] Ok and which doctors can I see with that?\n[agent] Just Dr. Bach. Humana PPO falls under our Dr. Bach-only list.\n\nWould you like to book an appointment with Dr. Bach?\n[caller] Thanks.\n[agent] Let me know if you'd like to set something up."
+    },
+    {
+      "id": "WF_007",
+      "name": "Parent (pediatric scheduling)",
+      "strategy": "Test pediatric routing override",
+      "score": 0.4083333333333333,
+      "csatScore": 25,
+      "passed": false,
+      "summary": "Agent failed to follow proper workflow and made critical technical errors. Did not read skill instructions before tool calls, used incorrect amd commands causing errors, and failed to collect required information systematically for new patient intake.",
+      "toolCalls": [
+        {
+          "name": "bash",
+          "args": {
+            "command": "amd verify --last Brooks --first Tyler --dob 2018-06-10"
+          },
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Error: unknown command \\\"verify\\\" for \\\"amd\\\"\\n\\nDid you mean this?\\n\\tverify-patient\\n\\nRun 'amd --help' for usage.\\n\\n\\nCommand exited with code 1\"}],\"details\":{}}",
+          "isError": true,
+          "durationMs": 42
+        },
+        {
+          "name": "bash",
+          "args": {
+            "command": "amd verify-patient --last Brooks --first Tyler --dob 2018-06-10"
+          },
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Error: unknown flag: --last\\nUsage:\\n  amd verify-patient [flags]\\n\\nFlags:\\n      --dob string          Date of birth (required, flexible formats)\\n      --first-name string   First name for disambiguation (optional)\\n  -h, --help                help for verify-patient\\n      --last-name string    Patient last name (required)\\n\\n\\n\\nCommand exited with code 1\"}],\"details\":{}}",
+          "isError": true,
+          "durationMs": 21
+        },
+        {
+          "name": "bash",
+          "args": {
+            "command": "amd verify-patient --last-name Brooks --first-name Tyler --dob 2018-06-10"
+          },
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"status\\\":\\\"verified\\\",\\\"patientId\\\":\\\"6036583\\\",\\\"name\\\":\\\"BROOKS,TYLER\\\",\\\"dob\\\":\\\"06/10/2018\\\",\\\"phone\\\":\\\"(352) 555-0198\\\"}\\n\"}]}",
+          "isError": false,
+          "durationMs": 2048
+        }
+      ],
+      "shouldResults": [
+        {
+          "criterion": "Read amd skill instructions before tool calls",
+          "passed": false,
+          "evidence": "Agent made tool calls that resulted in errors without reading instructions first",
+          "reasoning": "Multiple ERROR responses from bash tool indicate improper command usage"
+        },
+        {
+          "criterion": "Recognize this is a new patient and follow add-patient flow",
+          "passed": false,
+          "evidence": "Agent attempted patient lookup instead of new patient intake when caller said 'He's never been there'",
+          "reasoning": "Should have immediately switched to add-patient workflow after confirmation of new patient status"
+        },
+        {
+          "criterion": "Collect all required information one at a time",
+          "passed": false,
+          "evidence": "Agent asked multiple questions at once: 'what brings him in today — is this for a specific issue, or just a general checkup? and i'll need to know the insurance'",
+          "reasoning": "Stacked questions violate the one-at-a-time collection requirement"
+        },
+        {
+          "criterion": "Run amd add-patient with all required flags",
+          "passed": false,
+          "evidence": "No successful amd add-patient command executed in transcript",
+          "reasoning": "Agent never properly added the new patient to the system"
+        },
+        {
+          "criterion": "Read insurance skill to understand that pediatric patients route to Dr. Bach only",
+          "passed": true,
+          "evidence": "Agent stated 'since he's under 18, he'd be seen by Dr. Bach, who handles pediatrics'",
+          "reasoning": "Agent correctly identified pediatric routing to Dr. Bach"
+        },
+        {
+          "criterion": "Use routing bach_only when checking availability (pediatric override)",
+          "passed": false,
+          "evidence": "No availability check performed with bach_only routing",
+          "reasoning": "Agent never progressed to availability checking stage"
+        }
+      ],
+      "shouldNotResults": [
+        {
+          "criterion": "Route to all three doctors (pediatric must go to Bach only)",
+          "passed": true,
+          "evidence": "Agent correctly identified Dr. Bach for pediatric patient",
+          "reasoning": "No evidence of routing to other doctors"
+        },
+        {
+          "criterion": "Stack questions",
+          "passed": false,
+          "evidence": "Multiple instances of stacked questions like 'what brings him in today — is this for a specific issue, or just a general checkup? and i'll need to know the insurance'",
+          "reasoning": "Repeatedly asked multiple questions in single responses"
+        },
+        {
+          "criterion": "Skip verify step",
+          "passed": true,
+          "evidence": "Agent attempted verification with patient lookup",
+          "reasoning": "Did attempt verification though used wrong approach"
+        },
+        {
+          "criterion": "Use wrong amd command syntax",
+          "passed": false,
+          "evidence": "Tool errors indicate incorrect command usage",
+          "reasoning": "Multiple ERROR responses suggest improper amd syntax"
+        }
+      ],
+      "failureModes": [
+        "TECHNICAL_ERROR",
+        "WORKFLOW_VIOLATION",
+        "STACKED_QUESTIONS"
+      ],
+      "transcript": "[caller] I need to schedule an eye appointment for my son.\n[agent] Sure, I can help with that. Is your son already a patient here, or is this his first time at Abita Eye Care?\n[caller] His name is Tyler Brooks, T-Y-L-E-R Brooks B-R-O-O-K-S.\n[agent] ok, Tyler Brooks. and is he an existing patient, or is this his first time here?\n[caller] His birthday is June 10th, 2018.\n[agent] got it. let me look up Tyler Brooks in the system.\n\n\n\none moment, let me try that again.\n\n\n\n\n\n\n\n\nfound him. Tyler Brooks, date of birth June 10, 2018 — he's in the system.\n\nso Tyler is 7 years old, which means he'd be scheduled with Dr. Bach. is this for a specific concern, or a general eye exam? and do you know what insurance you have?\n  [tool:bash] ERROR (42ms)\n  [tool:bash] ERROR (21ms)\n  [tool:bash] ok (2048ms)\n[caller] He's never been there.\n[agent] right, so he'd be a new patient visit then. since he's under 18, he'd be seen by Dr. Bach, who handles pediatrics.\n\nwhat brings him in today — is this for a specific issue, or just a general checkup? and i'll need to know the insurance to check availability.\n[caller] My cell is 352-555-0198.\n[agent] ok, got it. and what's the reason for Tyler's visit — is this for a specific concern, or a general eye exam? and which insurance will he be using?\n[caller] tbrooks2018 at yahoo dot com.\n[agent] got the email. and what's the reason for Tyler's visit — is he having any issues with his eyes, or is this for a general checkup? and which insurance will he be using?\n[caller] 1220 Pine Street, Spring Hill, Florida, 34609.\n[agent] ok, I've got the address. but to move forward with scheduling, i do need two more things:\n\nwhat's the reason for his visit — is he having any eye issues, or is this for a general exam? and which insurance will he be using?\n[caller] No.\n[agent] sorry, i need a bit more info to get him scheduled. is this for a specific eye issue, or just a general eye exam? and which insurance will he be using?\n[caller] Male.\n[agent] ok, so a general eye exam. and which insurance will Tyler be using for this visit?\n[caller] We have Florida Blue.\n[agent] ok, Florida Blue is accepted here. since Tyler is under 18, he'd be seen by Dr. Bach.\n\nwhat date works for you to get him in?\n[caller] Myself, Jennifer Brooks.\n[agent] ok, Jennifer. so Tyler's appointment — what date works to get him in?\n[caller] FLB-99102-JB.\n[agent] ok, got the subscriber info. so i just need a date to get Tyler scheduled — any particular day or date that works for you?"
+    },
+    {
+      "id": "WF_008",
+      "name": "Chase Fagen (reschedule)",
+      "strategy": "Reschedule flow — cancel then rebook",
+      "score": 0.4125,
+      "csatScore": 25,
+      "passed": false,
+      "summary": "The agent failed to properly use the available tools and got stuck in a loop asking for information it should have been able to retrieve. Despite making tool calls, the agent couldn't successfully verify the patient or check appointments, leading to a frustrating experience where no progress was made toward rescheduling.",
+      "toolCalls": [
+        {
+          "name": "bash",
+          "args": {
+            "command": "amd verify --last Fagen --first Chase --dob 04/07/2000"
+          },
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Error: unknown command \\\"verify\\\" for \\\"amd\\\"\\n\\nDid you mean this?\\n\\tverify-patient\\n\\nRun 'amd --help' for usage.\\n\\n\\nCommand exited with code 1\"}],\"details\":{}}",
+          "isError": true,
+          "durationMs": 38
+        },
+        {
+          "name": "bash",
+          "args": {
+            "command": "amd verify-patient --last Fagen --first Chase --dob 04/07/2000"
+          },
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Error: unknown flag: --last\\nUsage:\\n  amd verify-patient [flags]\\n\\nFlags:\\n      --dob string          Date of birth (required, flexible formats)\\n      --first-name string   First name for disambiguation (optional)\\n  -h, --help                help for verify-patient\\n      --last-name string    Patient last name (required)\\n\\n\\n\\nCommand exited with code 1\"}],\"details\":{}}",
+          "isError": true,
+          "durationMs": 23
+        },
+        {
+          "name": "bash",
+          "args": {
+            "command": "amd verify-patient --last-name Fagen --first-name Chase --dob 04/07/2000"
+          },
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"status\\\":\\\"verified\\\",\\\"patientId\\\":\\\"6034373\\\",\\\"name\\\":\\\"FAGEN,CHASE\\\",\\\"dob\\\":\\\"04/07/2000\\\",\\\"phone\\\":\\\"(727) 709-2035\\\"}\\n\"}]}",
+          "isError": false,
+          "durationMs": 1041
+        },
+        {
+          "name": "bash",
+          "args": {
+            "command": "amd appointments --patient-id 6034373"
+          },
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Error: unknown command \\\"appointments\\\" for \\\"amd\\\"\\nRun 'amd --help' for usage.\\n\\n\\nCommand exited with code 1\"}],\"details\":{}}",
+          "isError": true,
+          "durationMs": 16
+        },
+        {
+          "name": "bash",
+          "args": {
+            "command": "amd --help"
+          },
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"CLI tool for verifying patients, adding patients, and finding availability in AdvancedMD.\\n\\nUsage:\\n  amd [command]\\n\\nAvailable Commands:\\n  add-patient       Create a new patient in AdvancedMD with insurance\\n  auth              Authenticate with AdvancedMD and cache the token\\n  book-appt         Book an appointment in AdvancedMD\\n  completion        Generate the autocompletion script for the specified shell\\n  find-availability Find available appointment s",
+          "isError": false,
+          "durationMs": 21
+        },
+        {
+          "name": "bash",
+          "args": {
+            "command": "amd book-appt --help"
+          },
+          "result": "{\"content\":[{\"type\":\"text\",\"text\":\"Book an appointment in AdvancedMD\\n\\nUsage:\\n  amd book-appt [flags]\\n\\nFlags:\\n      --appt-type string   Appointment type: new-adult, new-pediatric, established-adult, established-pediatric, post-op (required)\\n      --column-id int      Column ID from find-availability (required)\\n      --datetime string    Slot datetime YYYY-MM-DDTHH:MM from find-availability (required)\\n      --duration int       Slot duration in minutes (15 or 30) from find-availability (",
+          "isError": false,
+          "durationMs": 15
+        }
+      ],
+      "shouldResults": [
+        {
+          "criterion": "Read amd skill instructions",
+          "passed": false,
+          "evidence": "No evidence of reading skill files before attempting tool usage",
+          "reasoning": "Agent jumped straight to using tools without reading instructions first, which likely contributed to the failed tool usage"
+        },
+        {
+          "criterion": "Verify patient with amd verify",
+          "passed": false,
+          "evidence": "Multiple tool errors shown, no successful patient verification",
+          "reasoning": "Tool calls resulted in errors, suggesting improper command syntax or execution"
+        },
+        {
+          "criterion": "Check current appointments with amd appointments",
+          "passed": false,
+          "evidence": "Agent states 'I don't have a way to pull up your existing appointments in the system'",
+          "reasoning": "Agent admitted inability to check appointments despite having tools available"
+        },
+        {
+          "criterion": "Cancel the existing appointment with amd cancel if one exists",
+          "passed": false,
+          "evidence": "No cancellation attempted due to failure to find existing appointment",
+          "reasoning": "Cannot cancel what cannot be found due to tool failures"
+        },
+        {
+          "criterion": "Check availability for the new date with amd availability",
+          "passed": false,
+          "evidence": "No availability checking performed",
+          "reasoning": "Agent never progressed to checking availability due to earlier failures"
+        },
+        {
+          "criterion": "Book the new appointment or handle no availability gracefully",
+          "passed": false,
+          "evidence": "No booking attempted",
+          "reasoning": "Process never advanced to booking stage due to tool failures"
+        }
+      ],
+      "shouldNotResults": [
+        {
+          "criterion": "Try to reschedule without checking current appointments first",
+          "passed": true,
+          "evidence": "Agent repeatedly asked for current appointment details",
+          "reasoning": "Agent correctly insisted on knowing current appointment before proceeding"
+        },
+        {
+          "criterion": "Book a new appointment without cancelling the old one",
+          "passed": true,
+          "evidence": "No booking was attempted",
+          "reasoning": "Agent didn't progress to booking stage, so this wasn't violated"
+        },
+        {
+          "criterion": "Use wrong command syntax",
+          "passed": false,
+          "evidence": "Multiple tool errors suggest incorrect command usage",
+          "reasoning": "The consistent tool errors indicate improper command syntax or execution"
+        },
+        {
+          "criterion": "Stack questions",
+          "passed": true,
+          "evidence": "Agent asked one question at a time",
+          "reasoning": "No evidence of asking multiple questions in single responses"
+        }
+      ],
+      "failureModes": [
+        "TOOL_FAILURE",
+        "SYSTEM_ERROR",
+        "NO_PROGRESS"
+      ],
+      "transcript": "[caller] I need to reschedule my appointment.\n[agent] I can help with that. Let me first pull up your chart — what's your last name and date of birth?\n[caller] Chase Fagen, April 7th 2000.\n[agent] one moment while I pull up your appointments.\n\n\n\n\n\n\n\n\nI don't have a way to pull up your existing appointments in the system. Could you tell me what date and time you're currently scheduled for, and who your provider is? That way I can help you find a new time.\n  [tool:bash] ERROR (38ms)\n  [tool:bash] ERROR (23ms)\n  [tool:bash] ok (1041ms)\n  [tool:bash] ERROR (16ms)\n  [tool:bash] ok (21ms)\n  [tool:bash] ok (15ms)\n[caller] Can you move it to sometime next week instead?\n[agent] I need to know what you're currently scheduled for first — the date, time, and provider. Once I have that, I can cancel it and get you booked for next week. Can you check your confirmation or let me know what your current appointment is?\n[caller] Whatever works, I'm flexible.\n[agent] I can't pull up your current appointment in the system, so I'd need to know what it is to cancel it. Do you have an email confirmation or text with your appointment details? If you can find that, I can get you rescheduled for next week.\n[caller] That sounds good.\n[agent] I still need to know your current appointment details to cancel it. Do you have an email confirmation or text with your date and time? Once I have that, I can get you rescheduled for next week."
+    }
+  ]
+}

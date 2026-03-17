@@ -2,7 +2,7 @@
 // Reads markdown files from workspace/ and discovers skills from workspace/skills/.
 // Workspace files (SOUL, VOICE) are loaded directly into the prompt.
 // Skills are listed by name + description so the agent knows what's available
-// and can read the full INSTRUCTIONS.md on demand.
+// and can read the full SKILL.md on demand.
 
 import { readFileSync, existsSync, readdirSync } from "fs";
 import { join } from "path";
@@ -31,7 +31,7 @@ function loadWorkspaceFile(workspacePath: string, filename: string): string | nu
   return content;
 }
 
-// Parse YAML-ish frontmatter from a skill's INSTRUCTIONS.md
+// Parse YAML-ish frontmatter from a skill's SKILL.md
 function parseFrontmatter(content: string): { name: string; description: string } | null {
   const match = content.match(/^---\n([\s\S]*?)\n---/);
   if (!match) return null;
@@ -67,7 +67,7 @@ function parseFrontmatter(content: string): { name: string; description: string 
   return { name, description };
 }
 
-// Discover skills from workspace/skills/*/INSTRUCTIONS.md
+// Discover skills from workspace/skills/*/SKILL.md
 function discoverSkills(workspacePath: string): { name: string; description: string; path: string }[] {
   const skillsDir = join(workspacePath, "skills");
   if (!existsSync(skillsDir)) return [];
@@ -76,7 +76,7 @@ function discoverSkills(workspacePath: string): { name: string; description: str
 
   for (const entry of readdirSync(skillsDir, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
-    const instrPath = join(skillsDir, entry.name, "INSTRUCTIONS.md");
+    const instrPath = join(skillsDir, entry.name, "SKILL.md");
     if (!existsSync(instrPath)) continue;
 
     const content = readFileSync(instrPath, "utf-8");
