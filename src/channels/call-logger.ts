@@ -163,5 +163,17 @@ export class CallLogger {
     const date = this.startedAt.toISOString().slice(0, 10);
     const logPath = join(LOG_DIR, `calls-${date}.jsonl`);
     appendFileSync(logPath, JSON.stringify(log) + "\n");
+
+    // Print summary to stdout so it shows up in Railway logs
+    console.log(`\n[call-log] ${this.callSid} — ${log.durationSec}s, ${log.totalTurns} turns`);
+    console.log(`  tokens: ${log.totals.inputTokens} in / ${log.totals.outputTokens} out / ${log.totals.cacheReadTokens} cache-read (${log.totals.totalTokens} total)`);
+    console.log(`  cache hit rate: ${(log.totals.cacheHitRate * 100).toFixed(1)}%`);
+    console.log(`  tools: ${log.totals.toolCalls} calls, ${log.totals.toolErrors} errors`);
+    console.log(`  avg latency: ${log.totals.avgFirstTokenMs}ms first-token, ${log.totals.avgFirstAudioMs}ms first-audio`);
+    for (const turn of log.turns) {
+      const toolInfo = turn.toolCalls.length ? ` | tools: ${turn.toolCalls.map(tc => `${tc.name}(${tc.durationMs}ms${tc.isError ? " ERR" : ""})`).join(", ")}` : "";
+      console.log(`  turn ${turn.turn}: ${turn.firstTokenMs}ms tok, ${turn.firstAudioMs}ms audio, ${turn.totalMs}ms total | "${turn.callerText.slice(0, 50)}"${toolInfo}`);
+    }
+    console.log(`[call-log] full JSON: ${JSON.stringify(log)}\n`);
   }
 }
