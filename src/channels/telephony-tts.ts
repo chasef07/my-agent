@@ -92,7 +92,13 @@ export function createTtsSession(
 
   ws.on("message", (data) => {
     if (cancelled) return;
-    const msg = JSON.parse(data.toString());
+    let msg: any;
+    try {
+      msg = JSON.parse(data.toString());
+    } catch {
+      console.error("[tts] Malformed WebSocket message, ignoring");
+      return;
+    }
     if (msg.audio) {
       onAudioChunk(msg.audio);
     } else if (msg.isFinal && flushed) {

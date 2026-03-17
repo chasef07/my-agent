@@ -38,13 +38,21 @@ export interface TelephonyConfig {
 // Read config from file (local dev) or CONFIG_JSON env var (Railway/production)
 export function loadConfig(): Config {
   if (process.env.CONFIG_JSON) {
-    return JSON.parse(process.env.CONFIG_JSON);
+    try {
+      return JSON.parse(process.env.CONFIG_JSON);
+    } catch (err) {
+      throw new Error(`Failed to parse CONFIG_JSON env var: ${err instanceof Error ? err.message : err}`);
+    }
   }
   const configPath = join(ROOT, "config.json");
   if (!existsSync(configPath)) {
     throw new Error("No config.json found and CONFIG_JSON env var not set");
   }
-  return JSON.parse(readFileSync(configPath, "utf-8"));
+  try {
+    return JSON.parse(readFileSync(configPath, "utf-8"));
+  } catch (err) {
+    throw new Error(`Failed to parse ${configPath}: ${err instanceof Error ? err.message : err}`);
+  }
 }
 
 // Resolve telephony credentials from environment variables.

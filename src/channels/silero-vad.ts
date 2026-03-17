@@ -89,6 +89,9 @@ export class VadState {
         this.sampleBufLen = remaining;
 
         resolve(prob);
+      }).catch((err) => {
+        console.error(`\x1b[31m[VAD]\x1b[0m Inference error: ${err instanceof Error ? err.message : err}`);
+        resolve(null);
       });
     });
 
@@ -122,6 +125,14 @@ export class VadState {
     this.context.fill(0);
     this.sampleBuf.fill(0);
     this.sampleBufLen = 0;
+  }
+}
+
+export async function cleanupVad(): Promise<void> {
+  if (sharedSession) {
+    await sharedSession.release();
+    sharedSession = null;
+    console.log(`\x1b[36m[VAD]\x1b[0m` + " ONNX session released");
   }
 }
 

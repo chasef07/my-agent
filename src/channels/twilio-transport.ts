@@ -47,7 +47,13 @@ export class TwilioTransport {
     this.socket = socket;
 
     socket.on("message", (data: Buffer) => {
-      const event: TwilioEvent = JSON.parse(data.toString());
+      let event: TwilioEvent;
+      try {
+        event = JSON.parse(data.toString());
+      } catch {
+        console.error("[twilio] Malformed WebSocket message, ignoring");
+        return;
+      }
 
       switch (event.event) {
         case "start":

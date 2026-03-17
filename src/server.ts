@@ -12,7 +12,7 @@ import type { TelephonyConfig } from "./config.js";
 import type { AgentOptions } from "./agent.js";
 import { TwilioTransport } from "./channels/twilio-transport.js";
 import { CallSession } from "./channels/call-session.js";
-import { initVad } from "./channels/silero-vad.js";
+import { initVad, cleanupVad } from "./channels/silero-vad.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -51,7 +51,9 @@ export async function startServer(options: {
     const wsProtocol = host?.includes("localhost") ? "ws" : "wss";
 
     // Fire-and-forget: warm skills while Twilio processes the TwiML
-    runWarmScripts().catch(() => {});
+    runWarmScripts().catch((err) => {
+      console.error(red("[pre-call]") + ` Warm scripts failed: ${err instanceof Error ? err.message : err}`);
+    });
 
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
@@ -139,7 +141,9 @@ export async function startServer(options: {
 
   // Run warm scripts once at startup (amd auth, etc.) so the token is cached
   // before any calls come in. Per-call warming is redundant but harmless.
-  await runWarmScripts().catch(() => {});
+  await runWarmScripts().catch((err) => {
+      console.error(red("[pre-call]") + ` Warm scripts failed: ${err instanceof Error ? err.message : err}`);
+    });
 
   // Preload Silero VAD model so inference is instant on first call
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -175,6 +179,7 @@ export async function startServer(options: {
       activeCalls.clear();
     }
 
+    await cleanupVad();
     console.log(cyan("[server]") + " Shutdown complete");
     process.exit(0);
   };
