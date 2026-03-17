@@ -3,35 +3,19 @@
 
 import Fastify, { type FastifyInstance } from "fastify";
 import websocketPlugin from "@fastify/websocket";
-import { execFile } from "child_process";
-import { promisify } from "util";
 import { fileURLToPath } from "url";
 import path from "path";
-import { glob } from "glob";
 import type { TelephonyConfig } from "./config.js";
 import type { AgentOptions } from "./agent.js";
 import { TwilioTransport } from "./channels/twilio-transport.js";
 import { CallSession } from "./channels/call-session.js";
 import { initVad, cleanupVad } from "./channels/silero-vad.js";
 
-const execFileAsync = promisify(execFile);
-
 const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;
 const cyan = (s: string) => `\x1b[36m${s}\x1b[0m`;
 const red = (s: string) => `\x1b[31m${s}\x1b[0m`;
 
 const activeCalls = new Map<string, CallSession>();
-
-async function runWarmScripts() {
-  const warmScripts = await glob("workspace/skills/*/warm.sh");
-  if (!warmScripts.length) return { scripts: 0, failed: 0 };
-  const results = await Promise.allSettled(
-    warmScripts.map((script) => execFileAsync(script)),
-  );
-  const failed = results.filter((r) => r.status === "rejected").length;
-  if (failed) console.log(dim(`[pre-call] ${failed}/${warmScripts.length} warm scripts failed`));
-  return { scripts: warmScripts.length, failed };
-}
 
 export async function startServer(options: {
   config: TelephonyConfig;
@@ -49,11 +33,6 @@ export async function startServer(options: {
   server.post("/voice", async (request, reply) => {
     const host = request.headers.host;
     const wsProtocol = host?.includes("localhost") ? "ws" : "wss";
-
-    // Fire-and-forget: warm skills while Twilio processes the TwiML
-    runWarmScripts().catch((err) => {
-      console.error(red("[pre-call]") + ` Warm scripts failed: ${err instanceof Error ? err.message : err}`);
-    });
 
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
@@ -130,20 +109,8 @@ export async function startServer(options: {
     });
   });
 
-  // --- POST /pre-call --- skill warming webhook (also called automatically from /voice)
-  server.post("/pre-call", async () => {
-    const result = await runWarmScripts();
-    return { status: "ok", ...result };
-  });
-
   // --- Health check ---
   server.get("/health", async () => ({ status: "ok", activeCalls: activeCalls.size }));
-
-  // Run warm scripts once at startup (amd auth, etc.) so the token is cached
-  // before any calls come in. Per-call warming is redundant but harmless.
-  await runWarmScripts().catch((err) => {
-      console.error(red("[pre-call]") + ` Warm scripts failed: ${err instanceof Error ? err.message : err}`);
-    });
 
   // Preload Silero VAD model so inference is instant on first call
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
