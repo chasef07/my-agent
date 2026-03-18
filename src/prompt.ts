@@ -5,7 +5,7 @@
 // and can read the full SKILL.md on demand.
 
 import { readFileSync, existsSync, readdirSync } from "fs";
-import { join } from "path";
+import { join, resolve } from "path";
 
 const MAX_FILE_CHARS = 20_000;   // max chars per workspace file
 const MAX_TOTAL_CHARS = 150_000; // max chars for the entire assembled prompt
@@ -76,7 +76,7 @@ function discoverSkills(workspacePath: string): { name: string; description: str
 
   for (const entry of readdirSync(skillsDir, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
-    const instrPath = join(skillsDir, entry.name, "SKILL.md");
+    const instrPath = resolve(join(skillsDir, entry.name, "SKILL.md"));
     if (!existsSync(instrPath)) continue;
 
     const content = readFileSync(instrPath, "utf-8");
@@ -104,10 +104,11 @@ export function buildSystemPrompt(workspacePath: string): string {
   const skills = discoverSkills(workspacePath);
   if (skills.length > 0) {
     const lines = ["# Available Skills", ""];
-    lines.push("When a task matches a skill below, read its full instructions before acting. Never guess — the skill contains the exact syntax, rules, and workflows you need.");
+    lines.push("When a task matches a skill below, use the read tool to load its SKILL.md before proceeding. Never guess — the skill contains the exact syntax, rules, and workflows you need.");
     lines.push("");
     for (const skill of skills) {
-      lines.push(`- **${skill.name}** — ${skill.description}`);
+      lines.push(`- **${skill.name}**: ${skill.path}`);
+      lines.push(`  ${skill.description}`);
     }
     sections.push(lines.join("\n"));
   }
