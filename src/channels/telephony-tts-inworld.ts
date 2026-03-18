@@ -144,8 +144,9 @@ export function createInworldTtsSession(
       if (cancelled || flushed) return;
       buffer += token;
 
-      // At sentence boundaries, send accumulated text with flush for immediate synthesis
-      if (SENTENCE_END.test(buffer)) {
+      // At sentence boundaries OR 60+ chars accumulated, flush for immediate synthesis
+      const shouldFlush = SENTENCE_END.test(buffer) || buffer.length >= 60;
+      if (shouldFlush) {
         const text = buffer;
         buffer = "";
         if (!ready) {
@@ -156,13 +157,7 @@ export function createInworldTtsSession(
         return;
       }
 
-      // Send each token immediately — let Inworld handle buffering
-      buffer = "";
-      if (!ready) {
-        pendingTokens.push({ text: token });
-      } else {
-        sendText(token);
-      }
+      // Otherwise keep accumulating — don't send tiny tokens individually
     },
 
     flush() {
