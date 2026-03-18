@@ -7,7 +7,7 @@ import type { AgentOptions } from "../agent.js";
 import { startAgent } from "../agent.js";
 import { createAsrSession, type AsrSession } from "./telephony-asr.js";
 import { createAsrCallbacks, speakGreeting } from "./audio-pipeline.js";
-import type { TtsSession } from "./telephony-tts.js";
+import { TtsConnection, type TtsSession } from "./telephony-tts.js";
 import type { AgentSession } from "@mariozechner/pi-coding-agent";
 import { createVadState, type VadState } from "./silero-vad.js";
 import { createBargeInDetector, type BargeInDetector } from "./barge-in.js";
@@ -32,6 +32,7 @@ export class CallSession {
   agentSession: AgentSession | null = null;
   asr: AsrSession | null = null;
   tts: TtsSession | null = null;
+  ttsConnection: TtsConnection | null = null;
   vad: VadState | null = null;
   bargeIn: BargeInDetector | null = null;
   logger: CallLogger;
@@ -86,7 +87,16 @@ export class CallSession {
       console.error(red("[error]") + ` ASR init failed:`, err);
     }
 
-    // 3. Local VAD for fast barge-in
+    // 3. Persistent TTS connection (multi-context — one WebSocket for the whole call)
+    if (config.ttsProvider !== "inworld") {
+      this.ttsConnection = new TtsConnection({
+        apiKey: config.elevenlabs.apiKey,
+        voiceId: config.elevenlabs.voiceId,
+        modelId: config.elevenlabs.modelId,
+      });
+    }
+
+    // 4. Local VAD for fast barge-in
     this.vad = createVadState();
     this.bargeIn = createBargeInDetector(() => {
       if (this.tts) { this.tts.cancel(); this.tts = null; }
@@ -107,6 +117,7 @@ export class CallSession {
     const duration = ((Date.now() - this.startedAt.getTime()) / 1000).toFixed(1);
     if (this.asr) this.asr.close();
     if (this.tts) this.tts.cancel();
+    if (this.ttsConnection) this.ttsConnection.close();
     this.vad = null;
     this.bargeIn = null;
     this.logger.flush();

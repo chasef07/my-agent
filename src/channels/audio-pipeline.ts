@@ -30,6 +30,7 @@ export function hasRealWords(text: string): boolean {
 }
 
 function createTts(
+  session: CallSession,
   config: TelephonyConfig,
   onAudioChunk: (base64Audio: string) => void,
   onDone: () => void,
@@ -43,6 +44,11 @@ function createTts(
       onDone,
     );
   }
+  // Use multi-context connection if available (no handshake per turn)
+  if (session.ttsConnection?.isAlive) {
+    return session.ttsConnection.createContext(onAudioChunk, onDone);
+  }
+  // Fallback to per-turn WebSocket
   return createTtsSession(
     { apiKey: config.elevenlabs.apiKey, voiceId: config.elevenlabs.voiceId, modelId: config.elevenlabs.modelId },
     onAudioChunk,
@@ -94,6 +100,7 @@ export function speakGreeting(session: CallSession, config: TelephonyConfig): vo
     session.vad?.reset();
     session.bargeIn?.reset();
     const greeting = createTts(
+      session,
       config,
       (base64Audio) => session.transport.sendAudio(session.streamSid, base64Audio),
       () => {
@@ -136,6 +143,7 @@ export async function processUtterance(
   let firstTtsAt = 0;
 
   const tts = createTts(
+    session,
     config,
     (base64Audio) => {
       if (session.turnCount !== thisTurn) return;

@@ -1,7 +1,8 @@
-// telephony-tts.ts — ElevenLabs WebSocket streaming TTS for phone calls
-// Streams LLM tokens directly to ElevenLabs over a persistent WebSocket.
-// Sends flush:true at sentence boundaries to force immediate audio generation.
-// Audio arrives as base64 ulaw_8000 ready for Twilio.
+// telephony-tts.ts — ElevenLabs multi-context WebSocket TTS for phone calls
+// One persistent WebSocket per call. Each turn creates a lightweight "context"
+// within that connection — no handshake overhead between turns.
+// On barge-in, the current context is closed and a new one is opened instantly.
+// Falls back to per-turn WebSocket if multi-context connection is unavailable.
 
 // @ts-ignore — ws default export works at runtime with tsx
 import WebSocket from "ws";
@@ -21,6 +22,200 @@ export interface TtsSession {
 // Sentence-ending punctuation — triggers flush:true to force immediate audio generation
 const SENTENCE_END = /[.!?]\s*$/;
 
+// --- Multi-context persistent connection (one per call) ---
+
+interface ContextState {
+  onAudioChunk: (base64Audio: string) => void;
+  onDone: () => void;
+  cancelled: boolean;
+  flushed: boolean;
+  doneFired: boolean;
+}
+
+export class TtsConnection {
+  private ws: WebSocket;
+  private config: TtsConfig;
+  private ready = false;
+  private closed = false;
+  private contextCounter = 0;
+  private pendingMessages: string[] = [];
+  private contexts = new Map<string, ContextState>();
+
+  constructor(config: TtsConfig) {
+    this.config = config;
+    const url = `wss://api.elevenlabs.io/v1/text-to-speech/${config.voiceId}/multi-stream-input?model_id=${config.modelId}&output_format=ulaw_8000&auto_mode=true`;
+    this.ws = new WebSocket(url, {
+      headers: { "xi-api-key": config.apiKey },
+    });
+
+    this.ws.on("open", () => {
+      if (this.closed) { this.ws.close(); return; }
+      this.ready = true;
+      for (const msg of this.pendingMessages) {
+        this.ws.send(msg);
+      }
+      this.pendingMessages = [];
+    });
+
+    this.ws.on("message", (data) => {
+      let msg: any;
+      try {
+        msg = JSON.parse(data.toString());
+      } catch {
+        console.error("[tts] Malformed WebSocket message, ignoring");
+        return;
+      }
+
+      const ctx = msg.context_id ? this.contexts.get(msg.context_id) : null;
+      if (!ctx || ctx.cancelled) return;
+
+      if (msg.audio) {
+        ctx.onAudioChunk(msg.audio);
+      }
+      // Only honor isFinal after flush — server sends isFinal for init space " " too
+      if (msg.isFinal && ctx.flushed) {
+        this.fireDone(msg.context_id);
+      }
+    });
+
+    this.ws.on("error", (err) => {
+      if (!this.closed) {
+        console.error("[tts] WebSocket error:", err.message);
+      }
+      this.fireAllDone();
+    });
+
+    this.ws.on("close", () => {
+      this.fireAllDone();
+      this.ready = false;
+    });
+  }
+
+  private fireDone(contextId: string) {
+    const ctx = this.contexts.get(contextId);
+    if (ctx && !ctx.doneFired && !ctx.cancelled) {
+      ctx.doneFired = true;
+      ctx.onDone();
+    }
+    this.contexts.delete(contextId);
+  }
+
+  private fireAllDone() {
+    for (const [id, ctx] of this.contexts) {
+      if (!ctx.doneFired && !ctx.cancelled) {
+        ctx.doneFired = true;
+        ctx.onDone();
+      }
+    }
+    this.contexts.clear();
+  }
+
+  private send(msg: any) {
+    const str = JSON.stringify(msg);
+    if (this.ready && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(str);
+    } else if (!this.closed) {
+      this.pendingMessages.push(str);
+    }
+  }
+
+  /** Create a new audio generation context within this connection. */
+  createContext(
+    onAudioChunk: (base64Audio: string) => void,
+    onDone: () => void,
+  ): TtsSession {
+    const contextId = `ctx-${++this.contextCounter}`;
+    const ctx: ContextState = {
+      onAudioChunk,
+      onDone,
+      cancelled: false,
+      flushed: false,
+      doneFired: false,
+    };
+    this.contexts.set(contextId, ctx);
+
+    // Initialize context with voice settings
+    this.send({
+      context_id: contextId,
+      text: " ",
+      voice_settings: {
+        stability: 0.65,
+        similarity_boost: 0.8,
+        style: 0,
+        speed: 1.0,
+        use_speaker_boost: true,
+      },
+    });
+
+    let buffer = "";
+    let flushed = false;
+    let cancelled = false;
+    const send = this.send.bind(this);
+
+    return {
+      pushToken(token: string) {
+        if (cancelled || flushed) return;
+        buffer += token;
+
+        if (SENTENCE_END.test(buffer)) {
+          const text = buffer;
+          buffer = "";
+          send({ context_id: contextId, text, flush: true });
+          return;
+        }
+
+        // Send token immediately, let the server buffer
+        buffer = "";
+        send({ context_id: contextId, text: token });
+      },
+
+      flush() {
+        if (cancelled || flushed) return;
+        flushed = true;
+        ctx.flushed = true;
+        if (buffer.trim()) {
+          const text = buffer;
+          buffer = "";
+          send({ context_id: contextId, text, flush: true });
+        }
+        // Signal end of text for this context
+        send({ context_id: contextId, text: "" });
+      },
+
+      cancel() {
+        if (cancelled) return;
+        cancelled = true;
+        ctx.cancelled = true;
+        ctx.doneFired = true; // don't fire onDone for cancelled contexts
+        buffer = "";
+        // Force close context immediately — server stops generating
+        send({ context_id: contextId, close_context: true });
+      },
+    };
+  }
+
+  get isAlive(): boolean {
+    return this.ready && !this.closed && this.ws.readyState === WebSocket.OPEN;
+  }
+
+  close() {
+    this.closed = true;
+    for (const [, ctx] of this.contexts) {
+      ctx.cancelled = true;
+      ctx.doneFired = true;
+    }
+    this.contexts.clear();
+    if (this.ws.readyState === WebSocket.OPEN) {
+      try { this.ws.send(JSON.stringify({ close_socket: true })); } catch {}
+    }
+    if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
+      this.ws.close();
+    }
+  }
+}
+
+// --- Fallback: per-turn WebSocket (used if multi-context connection is down) ---
+
 export function createTtsSession(
   config: TtsConfig,
   onAudioChunk: (base64Audio: string) => void,
@@ -33,7 +228,7 @@ export function createTtsSession(
   let buffer = "";
   const pendingTokens: { text: string; flush?: boolean }[] = [];
 
-  const url = `wss://api.elevenlabs.io/v1/text-to-speech/${config.voiceId}/stream-input?model_id=${config.modelId}&output_format=ulaw_8000`;
+  const url = `wss://api.elevenlabs.io/v1/text-to-speech/${config.voiceId}/stream-input?model_id=${config.modelId}&output_format=ulaw_8000&auto_mode=true`;
   const ws = new WebSocket(url, {
     headers: { "xi-api-key": config.apiKey },
   });
@@ -61,30 +256,24 @@ export function createTtsSession(
   ws.on("open", () => {
     if (cancelled) { ws.close(); return; }
 
-    // Init message: voice settings + chunking config
     ws.send(JSON.stringify({
       text: " ",
       voice_settings: {
-        stability: 0.48,
+        stability: 0.65,
         similarity_boost: 0.8,
         style: 0,
         speed: 1.0,
-        use_speaker_boost: false,
-      },
-      generation_config: {
-        chunk_length_schedule: [50, 100, 200, 260],
+        use_speaker_boost: true,
       },
     }));
 
     ready = true;
 
-    // Flush any tokens that arrived before the connection was ready
     for (const token of pendingTokens) {
       sendToken(token.text, token.flush);
     }
     pendingTokens.length = 0;
 
-    // If flush() was called before we connected, close the stream now
     if (flushed) {
       closeStream();
     }
@@ -102,8 +291,6 @@ export function createTtsSession(
     if (msg.audio) {
       onAudioChunk(msg.audio);
     } else if (msg.isFinal && flushed) {
-      // Only honor isFinal after flush() — the server sends isFinal for the
-      // init space " " too, which would close the session prematurely.
       fireDone();
     }
   });
@@ -116,9 +303,6 @@ export function createTtsSession(
   });
 
   ws.on("close", () => {
-    // If we already flushed, this is the expected close — signal done.
-    // If not flushed, this is an unexpected close (error/timeout) — still signal done
-    // so the turn doesn't hang forever.
     fireDone();
   });
 
@@ -127,7 +311,6 @@ export function createTtsSession(
       if (cancelled || flushed) return;
       buffer += token;
 
-      // Check if the accumulated buffer ends at a sentence boundary
       if (SENTENCE_END.test(buffer)) {
         const text = buffer;
         buffer = "";
@@ -139,7 +322,6 @@ export function createTtsSession(
         return;
       }
 
-      // Otherwise send the token immediately, let the server buffer
       buffer = "";
       if (!ready) {
         pendingTokens.push({ text: token });
@@ -151,7 +333,6 @@ export function createTtsSession(
     flush() {
       if (cancelled || flushed) return;
       flushed = true;
-      // Send any remaining buffered text with flush
       if (buffer.trim()) {
         const text = buffer;
         buffer = "";
@@ -164,7 +345,6 @@ export function createTtsSession(
       if (ready) {
         closeStream();
       }
-      // If not ready yet, closeStream will be called after open + pending flush
     },
 
     cancel() {
