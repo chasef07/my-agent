@@ -8,6 +8,7 @@
 // @ts-ignore — ws default export works at runtime with tsx
 import WebSocket from "ws";
 import type { TtsSession } from "./telephony-tts.js";
+import { SentenceDetector } from "./sentence-detector.js";
 
 export interface InworldTtsConfig {
   apiKey: string;
@@ -15,7 +16,7 @@ export interface InworldTtsConfig {
   modelId: string;
 }
 
-const SENTENCE_END = /[.!?]\s*$/;
+
 const WS_URL = "wss://api.inworld.ai/tts/v1/voice:streamBidirectional";
 
 let contextCounter = 0;
@@ -29,7 +30,7 @@ export function createInworldTtsSession(
   let doneFired = false;
   let ready = false;
   let flushed = false;
-  let buffer = "";
+  const detector = new SentenceDetector();
   const contextId = `ctx-${++contextCounter}`;
   const pendingTokens: { text: string; flush?: boolean }[] = [];
 
@@ -142,34 +143,24 @@ export function createInworldTtsSession(
   return {
     pushToken(token: string) {
       if (cancelled || flushed) return;
-      buffer += token;
-
-      // At sentence boundaries OR 60+ chars accumulated, flush for immediate synthesis
-      const shouldFlush = SENTENCE_END.test(buffer) || buffer.length >= 60;
-      if (shouldFlush) {
-        const text = buffer;
-        buffer = "";
+      for (const chunk of detector.feed(token)) {
         if (!ready) {
-          pendingTokens.push({ text, flush: true });
+          pendingTokens.push({ text: chunk.text, flush: chunk.flush || undefined });
         } else {
-          sendText(text, true);
+          sendText(chunk.text, chunk.flush || undefined);
         }
-        return;
       }
-
-      // Otherwise keep accumulating — don't send tiny tokens individually
     },
 
     flush() {
       if (cancelled || flushed) return;
       flushed = true;
-      if (buffer.trim()) {
-        const text = buffer;
-        buffer = "";
+      const remaining = detector.drain();
+      if (remaining) {
         if (ready) {
-          sendText(text, true);
+          sendText(remaining.text, true);
         } else {
-          pendingTokens.push({ text, flush: true });
+          pendingTokens.push({ text: remaining.text, flush: true });
         }
       }
       if (ready) {
@@ -179,7 +170,7 @@ export function createInworldTtsSession(
 
     cancel() {
       cancelled = true;
-      buffer = "";
+      detector.reset();
       pendingTokens.length = 0;
       if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
         ws.close();

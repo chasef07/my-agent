@@ -6,6 +6,7 @@
 
 // @ts-ignore — ws default export works at runtime with tsx
 import WebSocket from "ws";
+import { SentenceDetector } from "./sentence-detector.js";
 
 export interface TtsConfig {
   apiKey: string;
@@ -18,9 +19,6 @@ export interface TtsSession {
   flush: () => void;
   cancel: () => void;
 }
-
-// Sentence-ending punctuation — triggers flush:true to force immediate audio generation
-const SENTENCE_END = /[.!?]\s*$/;
 
 // --- Multi-context persistent connection (one per call) ---
 
@@ -152,7 +150,7 @@ export class TtsConnection {
       },
     });
 
-    let buffer = "";
+    const detector = new SentenceDetector();
     let flushed = false;
     let cancelled = false;
     const send = this.send.bind(this);
@@ -160,28 +158,18 @@ export class TtsConnection {
     return {
       pushToken(token: string) {
         if (cancelled || flushed) return;
-        buffer += token;
-
-        if (SENTENCE_END.test(buffer)) {
-          const text = buffer;
-          buffer = "";
-          send({ context_id: contextId, text, flush: true });
-          return;
+        for (const chunk of detector.feed(token)) {
+          send({ context_id: contextId, text: chunk.text, ...(chunk.flush && { flush: true }) });
         }
-
-        // Send token immediately, let the server buffer
-        buffer = "";
-        send({ context_id: contextId, text: token });
       },
 
       flush() {
         if (cancelled || flushed) return;
         flushed = true;
         ctx.flushed = true;
-        if (buffer.trim()) {
-          const text = buffer;
-          buffer = "";
-          send({ context_id: contextId, text, flush: true });
+        const remaining = detector.drain();
+        if (remaining) {
+          send({ context_id: contextId, text: remaining.text, flush: true });
         }
         // Signal end of text for this context
         send({ context_id: contextId, text: "" });
@@ -192,7 +180,7 @@ export class TtsConnection {
         cancelled = true;
         ctx.cancelled = true;
         ctx.doneFired = true; // don't fire onDone for cancelled contexts
-        buffer = "";
+        detector.reset();
         // Force close context immediately — server stops generating
         send({ context_id: contextId, close_context: true });
       },
@@ -230,7 +218,6 @@ export function createTtsSession(
   let doneFired = false;
   let ready = false;
   let flushed = false;
-  let buffer = "";
   const pendingTokens: { text: string; flush?: boolean }[] = [];
 
   const url = `wss://api.elevenlabs.io/v1/text-to-speech/${config.voiceId}/stream-input?model_id=${config.modelId}&output_format=ulaw_8000`;
@@ -314,40 +301,29 @@ export function createTtsSession(
     fireDone();
   });
 
+  const detector = new SentenceDetector();
+
   return {
     pushToken(token: string) {
       if (cancelled || flushed) return;
-      buffer += token;
-
-      if (SENTENCE_END.test(buffer)) {
-        const text = buffer;
-        buffer = "";
+      for (const chunk of detector.feed(token)) {
         if (!ready) {
-          pendingTokens.push({ text, flush: true });
+          pendingTokens.push({ text: chunk.text, flush: chunk.flush || undefined });
         } else {
-          sendToken(text, true);
+          sendToken(chunk.text, chunk.flush || undefined);
         }
-        return;
-      }
-
-      buffer = "";
-      if (!ready) {
-        pendingTokens.push({ text: token });
-      } else {
-        sendToken(token);
       }
     },
 
     flush() {
       if (cancelled || flushed) return;
       flushed = true;
-      if (buffer.trim()) {
-        const text = buffer;
-        buffer = "";
+      const remaining = detector.drain();
+      if (remaining) {
         if (ready) {
-          sendToken(text, true);
+          sendToken(remaining.text, true);
         } else {
-          pendingTokens.push({ text, flush: true });
+          pendingTokens.push({ text: remaining.text, flush: true });
         }
       }
       if (ready) {
@@ -357,7 +333,7 @@ export function createTtsSession(
 
     cancel() {
       cancelled = true;
-      buffer = "";
+      detector.reset();
       pendingTokens.length = 0;
       if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
         ws.close();

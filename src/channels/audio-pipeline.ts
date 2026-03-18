@@ -24,9 +24,21 @@ function ms(start: number): string {
 // Filler words that shouldn't trigger the agent or barge-in
 const FILLERS = new Set(["um", "uh", "uhh", "umm", "hmm", "hm", "ah", "oh", "er", "like", "so", "well", "actually"]);
 
+// ASR annotations like (static), (noise), (music) — not real speech
+const ASR_ANNOTATION = /^\s*\(.*\)\s*$/;
+
+/** True if text contains at least one non-filler word and isn't an ASR annotation. */
 export function hasRealWords(text: string): boolean {
+  if (ASR_ANNOTATION.test(text)) return false;
   const words = text.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter(Boolean);
   return words.some((w) => !FILLERS.has(w));
+}
+
+/** Count non-filler words. Used for barge-in threshold (require 2+ words to interrupt). */
+function countRealWords(text: string): number {
+  if (ASR_ANNOTATION.test(text)) return 0;
+  const words = text.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter(Boolean);
+  return words.filter((w) => !FILLERS.has(w)).length;
 }
 
 function createTts(
@@ -61,7 +73,7 @@ export function createAsrCallbacks(session: CallSession, config: TelephonyConfig
   return {
     onPartialTranscript(text) {
       process.stdout.write(`\r${dim("  [hearing]")} "${text}"          `);
-      if (session.state === "speaking" && session.tts && hasRealWords(text)) {
+      if (session.state === "speaking" && session.tts && countRealWords(text) >= 2) {
         process.stdout.write("\n");
         console.log(yellow("  [asr barge-in]") + " (fallback) Caller interrupted — cancelling TTS");
         session.tts.cancel();
