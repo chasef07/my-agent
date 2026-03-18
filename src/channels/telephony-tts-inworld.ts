@@ -1,8 +1,8 @@
 // telephony-tts-inworld.ts — Inworld WebSocket streaming TTS for phone calls
 // Uses the Inworld bidirectional WebSocket context protocol:
-//   create context → send_text (token-by-token) → close_context
-// Server-side buffering via bufferCharThreshold + maxBufferDelayMs handles
-// accumulation — no need to buffer full sentences client-side.
+//   create context → send_text (per token) → close_context
+// Tokens are sent immediately as they arrive from the LLM.
+// flush_context at sentence boundaries forces immediate synthesis.
 // Requests MULAW 8kHz audio so output is ready for Twilio without transcoding.
 
 // @ts-ignore — ws default export works at runtime with tsx
@@ -55,9 +55,6 @@ export function createInworldTtsSession(
           audio_encoding: "MULAW",
           sample_rate_hertz: 8000,
         },
-        // Server-side buffering: generate audio after 80 chars OR 300ms, whichever first
-        buffer_char_threshold: 80,
-        max_buffer_delay_ms: 300,
       },
     }));
   }
@@ -68,7 +65,6 @@ export function createInworldTtsSession(
       context_id: contextId,
       send_text: { text },
     };
-    // flush_context forces immediate synthesis of buffered text
     if (flush) msg.send_text.flush_context = {};
     ws.send(JSON.stringify(msg));
   }
@@ -124,7 +120,6 @@ export function createInworldTtsSession(
       return;
     }
 
-    // Audio chunk — extract base64 content
     if (result.audioChunk) {
       const b64 = result.audioChunk.audioContent || result.audioContent;
       if (b64) {
@@ -161,7 +156,7 @@ export function createInworldTtsSession(
         return;
       }
 
-      // Send each token immediately — server-side buffering handles accumulation
+      // Send each token immediately — let Inworld handle buffering
       buffer = "";
       if (!ready) {
         pendingTokens.push({ text: token });
