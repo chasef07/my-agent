@@ -66,7 +66,9 @@ export class TtsConnection {
         return;
       }
 
-      const ctx = msg.context_id ? this.contexts.get(msg.context_id) : null;
+      // Server responses use camelCase contextId, client sends snake_case context_id
+      const contextId = msg.contextId ?? msg.context_id;
+      const ctx = contextId ? this.contexts.get(contextId) : null;
       if (!ctx || ctx.cancelled) return;
 
       if (msg.audio) {
@@ -74,7 +76,7 @@ export class TtsConnection {
       }
       // Only honor isFinal after flush — server sends isFinal for init space " " too
       if (msg.isFinal && ctx.flushed) {
-        this.fireDone(msg.context_id);
+        this.fireDone(contextId);
       }
     });
 
