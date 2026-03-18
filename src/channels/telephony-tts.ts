@@ -148,7 +148,7 @@ export class TtsConnection {
         use_speaker_boost: true,
       },
       generation_config: {
-        chunk_length_schedule: [120, 160, 250, 290],
+        chunk_length_schedule: [80, 120, 200, 260],
       },
     });
 
@@ -271,7 +271,7 @@ export function createTtsSession(
         use_speaker_boost: true,
       },
       generation_config: {
-        chunk_length_schedule: [120, 160, 250, 290],
+        chunk_length_schedule: [80, 120, 200, 260],
       },
     }));
 
