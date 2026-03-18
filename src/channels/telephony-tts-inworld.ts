@@ -1,6 +1,6 @@
 // telephony-tts-inworld.ts — Inworld WebSocket streaming TTS for phone calls
 // Uses the Inworld bidirectional WebSocket context protocol:
-//   create context → send_text (at sentence boundaries) → close_context
+//   create context → (wait for contextCreated) → send_text → close_context
 // Requests MULAW 8kHz audio so output is ready for Twilio without transcoding.
 
 // @ts-ignore — ws default export works at runtime with tsx
@@ -25,7 +25,7 @@ export function createInworldTtsSession(
 ): TtsSession {
   let cancelled = false;
   let doneFired = false;
-  let ready = false;
+  let contextReady = false; // true after contextCreated confirmation
   let flushed = false;
   let buffer = "";
   const contextId = `ctx-${++contextCounter}`;
@@ -50,11 +50,13 @@ export function createInworldTtsSession(
         voice_id: config.voiceId,
         model_id: config.modelId,
         audio_config: {
-          // MULAW at 8kHz matches Twilio's native format — no transcoding needed.
-          // If Inworld doesn't support MULAW, switch to LINEAR16 and add conversion.
           audio_encoding: "MULAW",
           sample_rate_hertz: 8000,
         },
+        // Lower temperature = more stable, consistent voice (less variation)
+        // Default is 1.0. For telephony, stability matters more than variety.
+        temperature: 0.7,
+        talking_speed: 1.0,
       },
     }));
   }
@@ -78,13 +80,8 @@ export function createInworldTtsSession(
     }));
   }
 
-  ws.on("open", () => {
-    if (cancelled) { ws.close(); return; }
-
-    sendCreateContext();
-    ready = true;
-
-    // Flush any text that arrived before the connection was ready
+  // Flush any queued text and close if needed — called when context becomes ready
+  function drainPending() {
     for (const text of pendingTexts) {
       sendText(text);
     }
@@ -93,6 +90,12 @@ export function createInworldTtsSession(
     if (flushed) {
       closeContext();
     }
+  }
+
+  ws.on("open", () => {
+    if (cancelled) { ws.close(); return; }
+    // Send create context — don't send text until contextCreated comes back
+    sendCreateContext();
   });
 
   ws.on("message", (data) => {
@@ -114,6 +117,13 @@ export function createInworldTtsSession(
     const result = msg.result;
     if (!result) {
       if (msg.done) fireDone();
+      return;
+    }
+
+    // Context created — now safe to send text
+    if (result.contextCreated !== undefined && !contextReady) {
+      contextReady = true;
+      drainPending();
       return;
     }
 
@@ -152,7 +162,7 @@ export function createInworldTtsSession(
       if (SENTENCE_END.test(buffer)) {
         const text = buffer;
         buffer = "";
-        if (!ready) {
+        if (!contextReady) {
           pendingTexts.push(text);
         } else {
           sendText(text);
@@ -167,15 +177,16 @@ export function createInworldTtsSession(
       if (buffer.trim()) {
         const text = buffer;
         buffer = "";
-        if (ready) {
+        if (contextReady) {
           sendText(text);
         } else {
           pendingTexts.push(text);
         }
       }
-      if (ready) {
+      if (contextReady) {
         closeContext();
       }
+      // If not ready yet, drainPending() will close after contextCreated
     },
 
     cancel() {

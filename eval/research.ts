@@ -117,6 +117,7 @@ export async function runResearch(
   config: EvalConfig,
   agentOptions: AgentOptions,
   cwd: string,
+  preloadedScenarios?: Scenario[],
 ): Promise<void> {
   const resultsDir = join(cwd, "eval", "results");
   mkdirSync(resultsDir, { recursive: true });
@@ -125,10 +126,16 @@ export async function runResearch(
   console.log(bold(cyan("  AutoVoiceEvals — Research Mode")));
   console.log(bold(cyan("══════════════════════════════════════\n")));
 
-  // Step 1: Generate eval scenarios
-  console.log(bold("  Generating eval scenarios...\n"));
-  const scenarios = await generateScenarios(config, cwd, config.numScenarios, 1);
-  console.log(`  Generated ${scenarios.length} scenarios:\n`);
+  // Step 1: Load or generate eval scenarios
+  let scenarios: Scenario[];
+  if (preloadedScenarios?.length) {
+    scenarios = preloadedScenarios;
+    console.log(bold(`  Using ${scenarios.length} pre-loaded scenarios (from production):\n`));
+  } else {
+    console.log(bold("  Generating eval scenarios...\n"));
+    scenarios = await generateScenarios(config, cwd, config.numScenarios, 1);
+    console.log(`  Generated ${scenarios.length} scenarios:\n`);
+  }
   for (const sc of scenarios) {
     console.log(`    ${dim(sc.id)} ${sc.personaName} — ${sc.attackStrategy.slice(0, 50)}`);
   }

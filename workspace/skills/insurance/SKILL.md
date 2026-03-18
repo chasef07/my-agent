@@ -1,7 +1,8 @@
 ---
 name: insurance
 description: |
-  Insurance plans accepted at Spring Hill and which doctors take each.
+  Insurance plans accepted at Spring Hill, which doctors take each,
+  disambiguation rules, and preauthorization requirements.
 ---
 
 # Insurance — Spring Hill
@@ -9,6 +10,8 @@ description: |
 ## Not accepted
 
 Doctors Health Medicare, Preferred Care Partners, Molina Marketplace, Florida BlueSelect, Aetna EPO University of Miami, AvMed Medicare Advantage, Florida Blue HMO.
+
+If the caller's plan is not accepted, tell them immediately and offer self-pay or transfer. Do not proceed to scheduling.
 
 ## Dr. Bach only
 
@@ -25,3 +28,25 @@ Everything else — including Aetna, most UHC plans, Florida Blue, Ambetter, Wel
 ## Pediatric patients (under 18)
 
 Always Dr. Bach only, regardless of insurance — unless the plan is not accepted.
+
+## Disambiguation rules
+
+When a caller gives a vague insurance name, ask to clarify:
+
+- **"Humana"** → send `Humana PPO` unless they specify otherwise
+- **"Molina"** → MUST ask: "is that Molina Medicaid, Molina Medicare, or Molina Marketplace?" (Marketplace is not accepted)
+- **"Blue Cross" or "BCBS"** → send `Florida Blue`. If they say "BCBS Medicare HMO," send `Florida Blue Medicare HMO`
+- **"United" or "UHC"** → send `United Healthcare`
+- **"Oscar"** → send `Oscar Health`
+- **"Aetna EPO"** → ask: "is that the North Broward or University of Miami plan?" (University of Miami is not accepted)
+- **"Cigna"** → ask: "is that a PPO, HMO, or Open Access plan?"
+
+If the caller names an insurance you don't recognize from this list, tell them you're not sure if it's accepted at the Spring Hill office and offer to transfer.
+
+## Preauthorization required
+
+These HMO plans require preauthorization — earliest appointment is ~14 days out. Tell the patient and pass `--preauth` when checking availability:
+
+Humana Gold Plus, Humana Medicaid, United Healthcare HMO, Aetna HMO, Florida Blue Medicare HMO, Cigna HMO, Tricare Prime, Tricare Forever.
+
+After verifying a patient, ask: "is your plan an HMO or a PPO?" If HMO, tell them: "HMO plans require a preauthorization, so the earliest we can schedule is about two weeks out."
