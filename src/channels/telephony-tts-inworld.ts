@@ -1,12 +1,13 @@
 // telephony-tts-inworld.ts — Inworld WebSocket streaming TTS for phone calls
 // Uses the Inworld bidirectional WebSocket context protocol:
-//   create context → send_text (at sentence boundaries) → close_context
+//   create context → send_text (token-by-token) → close_context
+// Server-side buffering via bufferCharThreshold + maxBufferDelayMs handles
+// accumulation — no need to buffer full sentences client-side.
 // Requests MULAW 8kHz audio so output is ready for Twilio without transcoding.
 
 // @ts-ignore — ws default export works at runtime with tsx
 import WebSocket from "ws";
 import type { TtsSession } from "./telephony-tts.js";
-
 
 export interface InworldTtsConfig {
   apiKey: string;
@@ -30,7 +31,7 @@ export function createInworldTtsSession(
   let flushed = false;
   let buffer = "";
   const contextId = `ctx-${++contextCounter}`;
-  const pendingTexts: string[] = [];
+  const pendingTokens: { text: string; flush?: boolean }[] = [];
 
   const ws = new WebSocket(WS_URL, {
     headers: { Authorization: `Basic ${config.apiKey}` },
@@ -51,24 +52,25 @@ export function createInworldTtsSession(
         voice_id: config.voiceId,
         model_id: config.modelId,
         audio_config: {
-          // MULAW at 8kHz matches Twilio's native format — no transcoding needed.
-          // If Inworld doesn't support MULAW, switch to LINEAR16 and add conversion.
           audio_encoding: "MULAW",
           sample_rate_hertz: 8000,
         },
+        // Server-side buffering: generate audio after 80 chars OR 300ms, whichever first
+        buffer_char_threshold: 80,
+        max_buffer_delay_ms: 300,
       },
     }));
   }
 
-  function sendText(text: string) {
+  function sendText(text: string, flush?: boolean) {
     if (ws.readyState !== WebSocket.OPEN) return;
-    ws.send(JSON.stringify({
+    const msg: any = {
       context_id: contextId,
-      send_text: {
-        text,
-        flush_context: {},
-      },
-    }));
+      send_text: { text },
+    };
+    // flush_context forces immediate synthesis of buffered text
+    if (flush) msg.send_text.flush_context = {};
+    ws.send(JSON.stringify(msg));
   }
 
   function closeContext() {
@@ -85,11 +87,10 @@ export function createInworldTtsSession(
     sendCreateContext();
     ready = true;
 
-    // Flush any text that arrived before the connection was ready
-    for (const text of pendingTexts) {
-      sendText(text);
+    for (const token of pendingTokens) {
+      sendText(token.text, token.flush);
     }
-    pendingTexts.length = 0;
+    pendingTokens.length = 0;
 
     if (flushed) {
       closeContext();
@@ -148,18 +149,25 @@ export function createInworldTtsSession(
       if (cancelled || flushed) return;
       buffer += token;
 
-      // Inworld works best with complete sentences — buffer tokens
-      // and send at sentence boundaries for immediate synthesis
+      // At sentence boundaries, send accumulated text with flush for immediate synthesis
       if (SENTENCE_END.test(buffer)) {
         const text = buffer;
         buffer = "";
         if (!ready) {
-          pendingTexts.push(text);
+          pendingTokens.push({ text, flush: true });
         } else {
-          sendText(text);
+          sendText(text, true);
         }
+        return;
       }
-      // Otherwise keep buffering (don't send individual tokens)
+
+      // Send each token immediately — server-side buffering handles accumulation
+      buffer = "";
+      if (!ready) {
+        pendingTokens.push({ text: token });
+      } else {
+        sendText(token);
+      }
     },
 
     flush() {
@@ -169,9 +177,9 @@ export function createInworldTtsSession(
         const text = buffer;
         buffer = "";
         if (ready) {
-          sendText(text);
+          sendText(text, true);
         } else {
-          pendingTexts.push(text);
+          pendingTokens.push({ text, flush: true });
         }
       }
       if (ready) {
@@ -182,7 +190,7 @@ export function createInworldTtsSession(
     cancel() {
       cancelled = true;
       buffer = "";
-      pendingTexts.length = 0;
+      pendingTokens.length = 0;
       if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
         ws.close();
       }
