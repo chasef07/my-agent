@@ -7,8 +7,6 @@
 import WebSocket from "ws";
 import type { TtsSession } from "./telephony-tts.js";
 
-// DEBUG: set to true to log combined base64 audio to stdout on turn end
-const DEBUG_DUMP_AUDIO = true;
 
 export interface InworldTtsConfig {
   apiKey: string;
@@ -33,7 +31,6 @@ export function createInworldTtsSession(
   let buffer = "";
   const contextId = `ctx-${++contextCounter}`;
   const pendingTexts: string[] = [];
-  const debugChunks: Buffer[] = [];
 
   const ws = new WebSocket(WS_URL, {
     headers: { Authorization: `Basic ${config.apiKey}` },
@@ -122,11 +119,6 @@ export function createInworldTtsSession(
     }
 
     if (result.contextClosed) {
-      if (DEBUG_DUMP_AUDIO && debugChunks.length > 0) {
-        const combined = Buffer.concat(debugChunks);
-        console.log(`[tts-inworld] DEBUG AUDIO (${contextId}, ${combined.length} bytes ulaw 8kHz)`);
-        console.log(`[AUDIO_START]${combined.toString("base64")}[AUDIO_END]`);
-      }
       fireDone();
       return;
     }
@@ -135,9 +127,6 @@ export function createInworldTtsSession(
     if (result.audioChunk) {
       const b64 = result.audioChunk.audioContent || result.audioContent;
       if (b64) {
-        if (DEBUG_DUMP_AUDIO) {
-          debugChunks.push(Buffer.from(b64, "base64"));
-        }
         onAudioChunk(b64);
       }
     }

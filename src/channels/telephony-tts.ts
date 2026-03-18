@@ -43,7 +43,7 @@ export class TtsConnection {
 
   constructor(config: TtsConfig) {
     this.config = config;
-    const url = `wss://api.elevenlabs.io/v1/text-to-speech/${config.voiceId}/multi-stream-input?model_id=${config.modelId}&output_format=ulaw_8000&auto_mode=true`;
+    const url = `wss://api.elevenlabs.io/v1/text-to-speech/${config.voiceId}/multi-stream-input?model_id=${config.modelId}&output_format=ulaw_8000`;
     this.ws = new WebSocket(url, {
       headers: { "xi-api-key": config.apiKey },
     });
@@ -136,7 +136,7 @@ export class TtsConnection {
     };
     this.contexts.set(contextId, ctx);
 
-    // Initialize context with voice settings
+    // Initialize context with voice settings + chunking config
     this.send({
       context_id: contextId,
       text: " ",
@@ -146,6 +146,9 @@ export class TtsConnection {
         style: 0,
         speed: 1.0,
         use_speaker_boost: true,
+      },
+      generation_config: {
+        chunk_length_schedule: [120, 160, 250, 290],
       },
     });
 
@@ -230,7 +233,7 @@ export function createTtsSession(
   let buffer = "";
   const pendingTokens: { text: string; flush?: boolean }[] = [];
 
-  const url = `wss://api.elevenlabs.io/v1/text-to-speech/${config.voiceId}/stream-input?model_id=${config.modelId}&output_format=ulaw_8000&auto_mode=true`;
+  const url = `wss://api.elevenlabs.io/v1/text-to-speech/${config.voiceId}/stream-input?model_id=${config.modelId}&output_format=ulaw_8000`;
   const ws = new WebSocket(url, {
     headers: { "xi-api-key": config.apiKey },
   });
@@ -266,6 +269,9 @@ export function createTtsSession(
         style: 0,
         speed: 1.0,
         use_speaker_boost: true,
+      },
+      generation_config: {
+        chunk_length_schedule: [120, 160, 250, 290],
       },
     }));
 
