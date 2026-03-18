@@ -44,11 +44,11 @@ function createTts(
       onDone,
     );
   }
-  // Use multi-context connection if available (no handshake per turn)
-  if (session.ttsConnection?.isAlive) {
-    return session.ttsConnection.createContext(onAudioChunk, onDone);
-  }
-  // Fallback to per-turn WebSocket
+  // TODO: multi-context WebSocket needs debugging — audio chunks not arriving
+  // if (session.ttsConnection?.isAlive) {
+  //   return session.ttsConnection.createContext(onAudioChunk, onDone);
+  // }
+  // Fallback to per-turn WebSocket (working)
   return createTtsSession(
     { apiKey: config.elevenlabs.apiKey, voiceId: config.elevenlabs.voiceId, modelId: config.elevenlabs.modelId },
     onAudioChunk,
