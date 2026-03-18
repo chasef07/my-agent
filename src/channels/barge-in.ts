@@ -10,7 +10,7 @@ const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;
 
 // Tuning knobs — adjust these if false positives/negatives occur
 export const BARGE_IN_THRESHOLD = 0.65; // lowered from 0.85 for echo-attenuated PSTN audio
-export const BARGE_IN_FRAMES = 3; // ~96ms at 32ms/frame
+export const BARGE_IN_FRAMES = 2; // ~64ms at 32ms/frame
 
 export class BargeInDetector {
   private consecutiveFrames = 0;

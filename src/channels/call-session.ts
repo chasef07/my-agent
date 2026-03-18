@@ -99,8 +99,9 @@ export class CallSession {
     // 4. Local VAD for fast barge-in
     this.vad = createVadState();
     this.bargeIn = createBargeInDetector(() => {
-      if (this.tts) { this.tts.cancel(); this.tts = null; }
+      // Clear Twilio audio queue FIRST — stops caller hearing agent speech immediately
       this.transport.clearAudio(this.streamSid);
+      if (this.tts) { this.tts.cancel(); this.tts = null; }
       this.state = "listening";
       this.vad?.reset();
       this.bargeIn?.reset();

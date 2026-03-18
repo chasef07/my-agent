@@ -75,14 +75,7 @@ export async function startServer(options: {
     });
 
     transport.onMedia((payload) => {
-      try {
-        if (currentSession?.asr) {
-          currentSession.asr.feedAudio(payload);
-        }
-      } catch (err) {
-        console.error(red("[error]") + ` Audio feed failed: ${err instanceof Error ? err.message : err}`);
-      }
-      // Local VAD for fast barge-in detection
+      // VAD first — barge-in detection is latency-critical
       if (currentSession?.vad && currentSession?.bargeIn) {
         currentSession.vad.processChunk(payload).then((prob) => {
           if (prob !== null && currentSession?.bargeIn) {
@@ -91,6 +84,14 @@ export async function startServer(options: {
         }).catch((err) => {
           console.error(red("[error]") + ` VAD inference failed: ${err instanceof Error ? err.message : err}`);
         });
+      }
+      // ASR second — transcript is not as time-critical
+      try {
+        if (currentSession?.asr) {
+          currentSession.asr.feedAudio(payload);
+        }
+      } catch (err) {
+        console.error(red("[error]") + ` Audio feed failed: ${err instanceof Error ? err.message : err}`);
       }
     });
 

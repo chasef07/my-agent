@@ -76,9 +76,9 @@ export function createAsrCallbacks(session: CallSession, config: TelephonyConfig
       if (session.state === "speaking" && session.tts && countRealWords(text) >= 2) {
         process.stdout.write("\n");
         console.log(yellow("  [asr barge-in]") + " (fallback) Caller interrupted — cancelling TTS");
+        session.transport.clearAudio(session.streamSid);
         session.tts.cancel();
         session.tts = null;
-        session.transport.clearAudio(session.streamSid);
         session.state = "listening";
         session.vad?.reset();
         session.bargeIn?.reset();
