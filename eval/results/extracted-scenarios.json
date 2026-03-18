@@ -1,0 +1,614 @@
+[
+  {
+    "id": "PROD_003",
+    "personaName": "Frustrated Parent with System History",
+    "personaBackground": "Parent calling to schedule appointment for daughter, claims to have already provided information in previous interaction, becomes increasingly frustrated with repetitive requests",
+    "difficulty": "C",
+    "attackStrategy": "Tests agent handling of tool failures, information persistence claims, and repetitive conversation loops while maintaining professional service recovery",
+    "callerScript": [
+      "Uh, uh, and here. Don't hang up",
+      "I was making an appointment for Rachel Murphy.",
+      "It's for my daughter. We went through all this.",
+      "Yes, Mr. T-Tiltler is too. Whoops.",
+      "Murphy.",
+      "Twelve, eight, eighty-seven.",
+      "Yes.",
+      "Right. And it would be a new patient?",
+      "We already did all that.",
+      "You need an email address. I got one for you.",
+      "Anthony, A-N-T-H-O-N-Y, @, A-T, the, T-H-E, island@gmail.com.",
+      "Yes. That should complete everything.",
+      "We already did that. One seventy-two ten Coyote Road.",
+      "Austin, Florida, three, four, six, six, seven.",
+      "No, it's Hudson. H-U-D-S-O-N, Florida. Three four six six seven.",
+      "No. What's the address of your facility?",
+      "Okay.",
+      "Female.",
+      "Mm-hmm. Say, 'No, we already did this.'"
+    ],
+    "agentShould": [
+      "Acknowledge when caller claims information was already provided",
+      "Use available tools correctly and handle tool errors gracefully",
+      "Only request facility address information when it's available in system/knowledge base",
+      "Avoid repeating the same questions multiple times in succession",
+      "Maintain professional demeanor despite caller frustration",
+      "Progress systematically through new patient registration without backtracking"
+    ],
+    "agentShouldNot": [
+      "Hallucinate or make up facility address information",
+      "Get stuck asking for the same information repeatedly",
+      "Continue using tools that return undefined or error results",
+      "Ignore caller's explicit statements about information already being provided",
+      "Create repetitive conversation loops",
+      "Provide inconsistent responses about what information is needed"
+    ]
+  },
+  {
+    "id": "PROD_009",
+    "personaName": "Lindwood Graham - New Patient with Tool Failures",
+    "personaBackground": "A 42-year-old male new patient from Zephyrhills, Florida seeking to schedule an appointment. Has Ambetter insurance and provides all required registration information clearly when asked.",
+    "difficulty": "C",
+    "attackStrategy": "Tests agent's ability to handle tool failures gracefully during new patient registration while maintaining professional service and completing the process without requiring transfer",
+    "callerScript": [
+      "Um, hello, David. I was looking to make an appointment as a new, um, patient.",
+      "Yes, it, it's for me. Can you hear me?",
+      "It's Lindwood, L-I-N-D-W-O-O-D, and I will be a new patient, by the way.",
+      "That is correct. Yes.",
+      "G-R-A-H-A-M.",
+      "That is correct.",
+      "Four six eighty-two.",
+      "Correct.",
+      "Seven two seven two hundred six five nine seven.",
+      "Six five nine seven.",
+      "[clicking] Six five nine seven.",
+      "No, sixty-five ninety-seven.",
+      "Yes.",
+      "L-C-G-R-A-H-A-M one two five four at gmail dot com.",
+      "Yes.",
+      "[sniffing] \u2014 six, six, seven, eight, I-S-L-I-N-G-T-O-N Way.",
+      "Yes, Zephyrhills.",
+      "Florida.",
+      "Three, three, five, four, one.",
+      "No.",
+      "Male.",
+      "Ambetter."
+    ],
+    "agentShould": [
+      "Successfully register the new patient despite any tool failures",
+      "Collect all required patient information (name, DOB, phone, email, address, gender, insurance)",
+      "Maintain professional demeanor when encountering system issues",
+      "Retry failed operations or use alternative methods to complete registration",
+      "Confirm patient information accuracy before proceeding",
+      "Complete the appointment scheduling process without requiring transfer"
+    ],
+    "agentShouldNot": [
+      "Experience repeated tool failures that prevent completing the registration",
+      "Transfer the call due to technical difficulties",
+      "Leave the patient registration incomplete",
+      "Fail to acknowledge or address system issues transparently",
+      "Abandon the registration process when tools return undefined results",
+      "Require multiple failed attempts at the same operation without resolution"
+    ]
+  },
+  {
+    "id": "PROD_010",
+    "personaName": "Adult Child Scheduling Parent's First Appointment",
+    "personaBackground": "Adult child calling to schedule their elderly mother's first ophthalmology appointment, has all necessary information including insurance details and personal information",
+    "difficulty": "B",
+    "attackStrategy": "Tests agent's ability to handle patient registration workflow when registration tools fail, requiring graceful error handling and appropriate escalation",
+    "callerScript": [
+      "Hi, David. I'd like to make an appointment on behalf of my mother. Uh, she needs an ophthalmologist, uh, but she have Oscar as an insurance. Do you guys accept that?",
+      "No, it's the first visit.",
+      "C-O-N-S-U-E-L-O.",
+      "Yes.",
+      "G-A-L-L-A-R-Z-O-N.",
+      "Yes.",
+      "May 7, 1950.",
+      "813-446-9504.",
+      "P-I-M-Z-O-M-M-M-one-two@gmail.com.",
+      "No.",
+      "P-I-N as in Nancy, Z as in zebra, O-N as in Nancy, M as in Mary, M as in Mary, one, two at gmail.com.",
+      "Yes.",
+      "Nine, zero, two, five Mazette Road, Weeki Wachee, Florida, three, four, six, one, three.",
+      "No.",
+      "Female.",
+      "Yes.",
+      "Her.",
+      "Yeah",
+      "This is a silver simple PCP policy number or mem-member ID number is O-S-C-seven-five-nine-three-three-six-six-two",
+      "Yes.",
+      "Yes."
+    ],
+    "agentShould": [
+      "Confirm insurance acceptance upfront",
+      "Collect all required patient registration information systematically",
+      "Spell back and verify each piece of information for accuracy",
+      "Correct email spelling errors through clarification",
+      "Provide clear status updates when encountering technical difficulties",
+      "Attempt registration multiple times when initial attempts fail",
+      "Escalate to appropriate personnel when unable to complete registration",
+      "Maintain professional demeanor throughout technical difficulties"
+    ],
+    "agentShouldNot": [
+      "Leave the caller waiting without explanation during tool failures",
+      "Abandon the registration process after a single failed attempt",
+      "Transfer the call without first attempting to resolve the technical issue",
+      "Fail to communicate what steps are being taken to address the problem",
+      "Complete the call without ensuring the patient gets registered"
+    ]
+  },
+  {
+    "id": "PROD_011",
+    "personaName": "Contact Lens Trial Parent",
+    "personaBackground": "Parent calling to order contact lens prescription for daughter who is an existing patient with an active trial",
+    "difficulty": "C",
+    "attackStrategy": "Tests agent's ability to handle patient lookups and transfers when system tools fail, particularly for contact lens prescription requests involving trials",
+    "callerScript": [
+      "Hi, I need to, uh, order a, um, prescription, a contact prescription for my daughter.",
+      "A patient. A patient of Doctor Bach.",
+      "K-I-N-L-E-I-G-H.",
+      "Yes.",
+      "B-A-L-D-W-I-N.",
+      "Yes.",
+      "Nine twenty-four of thirteen.",
+      "Yes.",
+      "No, she has a trial. Please talk to a customer service representative in the office."
+    ],
+    "agentShould": [
+      "Successfully look up patient information when provided with name and date of birth",
+      "Recognize that contact lens prescriptions require doctor evaluation",
+      "Offer to schedule an appointment when contact lens prescription is needed",
+      "Successfully transfer caller to appropriate department when requested",
+      "Handle patient lookup tools without errors",
+      "Complete the transfer process when caller requests to speak with customer service"
+    ],
+    "agentShouldNot": [
+      "Experience tool execution errors when looking up patient information",
+      "Return undefined results from system calls",
+      "Fail to complete the transfer process",
+      "Have broken tool integrations that prevent patient lookup",
+      "Leave the caller without proper assistance when transfer is needed",
+      "Experience system failures that interrupt the service flow"
+    ]
+  },
+  {
+    "id": "PROD_013",
+    "personaName": "Aura - Spanish-speaking patient seeking test results",
+    "personaBackground": "Spanish-speaking patient calling to inquire about carotid ultrasound results. Provides clear personal information but may not be in the system or requires clinical staff assistance.",
+    "difficulty": "C",
+    "attackStrategy": "Tests agent's ability to handle language switching, patient lookup failures, and appropriate transfer protocols when medical records access is needed",
+    "callerScript": [
+      "Hi, eh, speak Spanish, please?",
+      "Este, quer\u00eda saber si hab\u00edan recibido mis resultados, que me hicieron un eco de car\u00f3tidas.",
+      "Mi nombre es Aura Pereira.",
+      "Eh,",
+      "S\u00ed. Diez, nueve, cinco, tres.",
+      "Cincuenta y tres, 1953.",
+      "Oc-octubre. Diez octubre, nueve, el nueve de octubre.",
+      "S\u00ed.",
+      "P, E, R, E, I, R, A. Ah. [risa] P de papa, [risa] E de enano, R de rat\u00f3n, E de enano, I de isla, R de rama y A de aula.",
+      "Pereira."
+    ],
+    "agentShould": [
+      "Successfully switch to Spanish when requested",
+      "Collect complete patient identification information (full name and date of birth)",
+      "Attempt to locate patient in the system using provided information",
+      "Explain limitations regarding medical records access",
+      "Offer to transfer to appropriate clinical staff when unable to access medical results",
+      "Maintain professional and helpful tone throughout Spanish conversation"
+    ],
+    "agentShouldNot": [
+      "Experience tool call failures that result in undefined responses",
+      "Fail to locate patient in system without attempting alternative search methods",
+      "Leave caller without clear next steps when transfer is needed",
+      "Display tool error messages or technical failures to the caller",
+      "Abandon the call without completing the transfer process"
+    ]
+  },
+  {
+    "id": "PROD_014",
+    "personaName": "Parent Scheduling for Adult Daughter",
+    "personaBackground": "Parent calling to schedule a glaucoma appointment for their adult daughter Rachel Murphy (DOB: 12/8/1987). The daughter is a new patient who needs to be registered in the system.",
+    "difficulty": "C",
+    "attackStrategy": "Tests agent's ability to handle tool failures gracefully and maintain consistent company branding when patient lookup returns undefined results",
+    "callerScript": [
+      "Oh, hi. I need to make an appointment for glaucoma. Um, first question before we start is, can I get an appointment at four o'clock?",
+      "Are you there? Yeah, go ahead.",
+      "Yeah.",
+      "Okay.",
+      "Okay. This is for my daughter.",
+      "You keep breaking up here.",
+      "Hello?",
+      "That's okay. Still you're breaking up.",
+      "Rachel. Rachel. R-A-C-H-E-L.",
+      "Yes. Murphy.",
+      "Okay. M-U-R-P-H-Y.",
+      "That's perfect.",
+      "Twelve, eight, eighty-seven.",
+      "Yes. Are you human?",
+      "... she would be a new patient?",
+      "She doesn't have one that I'm aware of.",
+      "You can use seven two seven four two zero zero three one five.",
+      "Yes.",
+      "One seventy-two ten Coyote Road.",
+      "Hudson. Go ahead.",
+      "Florida, three, four, six, six, seven."
+    ],
+    "agentShould": [
+      "Use the correct company name 'Abeeta Eye Group' consistently throughout the call",
+      "Handle undefined/empty tool results gracefully without exposing technical errors to the caller",
+      "Properly transition to new patient registration flow when patient lookup fails",
+      "Maintain professional demeanor when technical issues occur",
+      "Collect complete patient information for new patient registration"
+    ],
+    "agentShouldNot": [
+      "Use incorrect company names like 'Abita Eye Care' instead of 'Abeeta Eye Group'",
+      "Make up or hallucinate company information when tools fail",
+      "Expose raw tool errors or undefined results to the caller",
+      "Continue searching for existing patients after confirming they are new",
+      "Break character or reveal technical implementation details unnecessarily"
+    ]
+  },
+  {
+    "id": "PROD_015",
+    "personaName": "Paul - Concerned Cataract Patient",
+    "personaBackground": "62-year-old patient experiencing new vision symptoms after previous laser eye surgery, needs ophthalmologist consultation for potential cataract complications",
+    "difficulty": "B",
+    "attackStrategy": "Tests agent's ability to handle tool failures gracefully during patient lookup while maintaining professional service flow",
+    "callerScript": [
+      "Yeah, I was calling to see if you take Oscar for the insurance.",
+      "Yes, I need to schedule an appointment.",
+      "I need, I need, I need to see an ophthalmologist 'cause I, I went to my regular checkup, go to the doctor, yearly checkups, and he claims that it might have seemed like a small cataract in my left eye. So I just had laser surgery in both eyes, almost three years ago. But I've been noticing, like, maybe it went dark and these, like, little flashes in the left eye. So I think something might be going on there.",
+      "Yes, Steve, maybe I've been noticing now for, you know, a couple weeks.",
+      "Yeah. Like, I still see good, but, like, I still read good off the TV and that, but everything's clear. It's just that I didn't know if I was, like, dark, like, dark like in a, a car in dark time. I noticed that.",
+      "Yeah.",
+      "R-T-A-U-L.",
+      "Mm-hmm. Paul. P-A-U-L.",
+      "Wise. Wise, W-I-S-E.",
+      "Six twenty-three sixty-two.",
+      "That's correct.",
+      "Three-five-two-seven-seven-seven-two-four-three-zero.",
+      "That's, that's correct.",
+      "W-T-S-O-X-1@gmail, like white tail, like Whiskey Tango, Sierra, Ostrich, X-ray, then the number one at Gmail.",
+      "That's correct.",
+      "Six one three zero Broad Street, Lot ninety-three, Brooksville, Florida, three four six zero one."
+    ],
+    "agentShould": [
+      "Confirm Oscar Health insurance acceptance",
+      "Ask relevant medical triage questions about the vision symptoms",
+      "Collect complete patient demographic information accurately",
+      "Handle system lookup failures transparently without exposing technical errors",
+      "Continue with manual registration when automated lookup fails",
+      "Maintain professional demeanor throughout the tool failure recovery"
+    ],
+    "agentShouldNot": [
+      "Expose raw tool error messages or technical failures to the patient",
+      "Use undefined or malformed tool commands that result in system errors",
+      "Interrupt the registration process due to technical difficulties",
+      "Make the patient aware of backend system issues",
+      "Fail to collect necessary patient information due to tool malfunctions"
+    ]
+  },
+  {
+    "id": "PROD_016",
+    "personaName": "Kathryn - Medicare Patient with Tech Issues",
+    "personaBackground": "Medicare Dual Complete patient needing eye appointment with referral, experiences connection issues causing pauses, provides complex spelled information that requires careful handling",
+    "difficulty": "C",
+    "attackStrategy": "Tests agent's ability to handle tool failures gracefully while collecting complex personal information from a patient with intermittent connection issues",
+    "callerScript": [
+      "Hi, David. Um, I need to, um, have something done to my eye. I have a referral, but I wanted to know if you guys took, um, UnitedHealthcare Dual Complete.",
+      "Yeah, I'm looking to schedule an appointment.",
+      "For myself.",
+      "K-A-T-H-R-Y-N.",
+      "Yes. Yes.",
+      "S-U-L-",
+      "Z as in zebra, Y, C as in Charles, K-I.",
+      "S-U-L-R-Z-Y-C-K-I.",
+      "Yes.",
+      "Twelve thirty-one, nineteen fifty-seven.",
+      "[pause for 3 seconds]",
+      "Yes.",
+      "Yes.",
+      "[pause for 2 seconds]",
+      "Yes.",
+      "Oh, shoot. Okay, hold on.",
+      "Three, five, two, two, nine, six, three, zero, four, seven.",
+      "Yes.",
+      "Capital K.",
+      "S-S-U-L-R-Z-Y-C-K-I fifty-seven @icloud.com.",
+      "No.",
+      "Um, it's just K-S. There's no F.",
+      "No, no. No. I'm gonna tell you again. K-S-U-L-R-Z-Y-C-K-I-five-seven at icloud dot com.",
+      "Can you say that again, please?",
+      "Yes."
+    ],
+    "agentShould": [
+      "Confirm insurance acceptance for UnitedHealthcare Dual Complete",
+      "Handle patient lookup tool failures gracefully without exposing technical errors",
+      "Accurately collect and confirm complex spelled names (KATHRYN SULRZYCKL)",
+      "Collect date of birth, phone number, and email address systematically",
+      "Repeat back information clearly for confirmation",
+      "Show patience during connection pauses and caller hesitation",
+      "Recover gracefully when patient needs to correct information",
+      "Proceed with registration when patient lookup fails"
+    ],
+    "agentShouldNot": [
+      "Expose tool errors or technical failures to the patient",
+      "Make the patient repeat their email address more than twice due to agent confusion",
+      "Show frustration or impatience during pauses or corrections",
+      "Fail to confirm information accuracy before proceeding",
+      "Add extra letters or characters when repeating back spelled information",
+      "Rush through information collection when patient needs time",
+      "Abandon the call due to technical issues"
+    ]
+  },
+  {
+    "id": "PROD_018",
+    "personaName": "Insurance Coverage Inquirer",
+    "personaBackground": "A patient calling to verify if their specific vision insurance plan (Optimum Vision Eye Care) is accepted before scheduling an appointment",
+    "difficulty": "B",
+    "attackStrategy": "Tests agent's ability to handle insurance verification requests when uncertain about coverage, including proper transfer procedures and tool usage",
+    "callerScript": [
+      "Um, uh, do, do you take Optimum, uh, Vision Eye Care?",
+      "...",
+      "Yes, yes. I'm here.",
+      "Yes. Yes, uh, help me with, um, connect me s-with someone that can help me with that."
+    ],
+    "agentShould": [
+      "Acknowledge uncertainty about the specific insurance plan when unsure",
+      "Offer to connect the caller with someone who can provide definitive insurance verification",
+      "Use proper transfer procedures with correct tool syntax",
+      "Complete the promised transfer to someone who can verify insurance coverage",
+      "Maintain professional communication throughout the interaction"
+    ],
+    "agentShouldNot": [
+      "Use unknown or invalid tools during transfer attempts",
+      "End the call abruptly without completing the promised transfer",
+      "Leave the caller waiting without resolution after promising help",
+      "Use incorrect syntax when attempting to transfer calls",
+      "Fail to follow through on commitments made to the caller"
+    ]
+  },
+  {
+    "id": "PROD_020",
+    "personaName": "Alexandria - New Patient Registration",
+    "personaBackground": "New patient calling to schedule an eye exam, needs to be registered in the system with personal information and insurance verification",
+    "difficulty": "B",
+    "attackStrategy": "Tests agent's ability to handle tool execution errors gracefully and capture caller information accurately without requiring repetition",
+    "callerScript": [
+      "Hi, I was calling to see if I could schedule an appointment for an eye exam.",
+      "For myself.",
+      "A-L-E-X-A-N-D-R-I-A.",
+      "Yeah.",
+      "Archer, A-R-C-H-E-R.",
+      "Ten, three, nineteen ninety-four.",
+      "Yes.",
+      "Yes.",
+      "Three five two two three eight three three zero nine.",
+      "Um, no, my telephone number is three five two two three eight three three zero nine.",
+      "Are you ready? I'll give it to you again.",
+      "Three five two, two three eight, three three zero nine.",
+      "Yes. A-L-E-X-A-N-D-R-I-A R-Y-A-N A-R-C-H-E-R @gmail.com.",
+      "Yes.",
+      "Five, two, one, seven, M-O-S-Q-U-E-R-O Road, Spring Hill, Florida, three, four, six, zero, six.",
+      "Yes.",
+      "No.",
+      "female.",
+      "Sunshine Health.",
+      "Thank you."
+    ],
+    "agentShould": [
+      "Successfully execute patient lookup tools without errors",
+      "Capture phone number correctly on first attempt",
+      "Handle insurance verification tools properly",
+      "Complete patient registration without requiring caller to repeat information",
+      "Provide clear status updates when using tools or systems"
+    ],
+    "agentShouldNot": [
+      "Have tool execution failures that result in undefined or empty responses",
+      "Require caller to repeat their phone number multiple times due to confusion",
+      "Show uncertainty about captured information when caller has already confirmed it",
+      "Experience system errors that interrupt the registration flow"
+    ]
+  },
+  {
+    "id": "PROD_022",
+    "personaName": "Urgent Parent Seeking Pediatric Eye Care",
+    "personaBackground": "Mother of 5-year-old daughter with vision problems who needs urgent pediatric ophthalmologist appointment. Has Humana Healthy Horizons insurance and has been unsuccessful finding timely appointments at other offices.",
+    "difficulty": "B",
+    "attackStrategy": "Tests agent's ability to handle tool failures gracefully while maintaining service quality and completing patient registration despite technical difficulties",
+    "callerScript": [
+      "Hi, greetings. My name is Jessica Cordova. I'm really hoping that you might be able to help me because I've been very unsuccessful this morning. I'm calling a lot of different pediatric ophthalmologist offices, and I'm trying to get my daughter seen. She has a referral from the optometrist because she was unable to really see out of her left eye. They said they wanted her further evaluated for amblyopia. All the places that I'm calling that take my insurance, which is Humana Healthy Horizons, are telling me they don't have appointments until the end of June, July, and October. I'm definitely trying to get her seen before that because she's walking around here blurry-sighted now that I know about it. She just keeps asking me when I'm gonna be able to help her get it fixed. So I just feel terrible as a mother. I just wanted to see if you all have anything that is sooner than that timeframe because I was not expecting to have to wait that long to help her get this resolved.",
+      "J-A-H-R-U-S-A-L-E-M.",
+      "Yeah",
+      "S-T-A-N-L-E-Y.",
+      "January 18th, 2021."
+    ],
+    "agentShould": [
+      "Show empathy for the parent's urgent situation and frustration",
+      "Confirm insurance compatibility with Humana Healthy Horizons",
+      "Collect complete patient information (name spelling, DOB) before attempting registration",
+      "Attempt alternative solutions when tools fail rather than immediately transferring",
+      "Provide clear explanation of next steps if transfer becomes necessary",
+      "Maintain professional tone throughout technical difficulties"
+    ],
+    "agentShouldNot": [
+      "Transfer the caller without exhausting troubleshooting options",
+      "Give up after only two registration attempts",
+      "Leave the caller without clear next steps or timeline",
+      "Fail to acknowledge the urgency of the child's vision needs",
+      "Make the caller repeat their story to another agent unnecessarily"
+    ]
+  },
+  {
+    "id": "PROD_023",
+    "personaName": "Parent scheduling pediatric appointment",
+    "personaBackground": "Father calling to schedule an eye appointment for his young son with a referral to Dr. Austin Bach. Has a Portuguese/Brazilian name (Joao Pedro Soares) and needs new patient registration.",
+    "difficulty": "B",
+    "attackStrategy": "Tests proper patient lookup functionality and new patient registration flow when dealing with complex names and young patients",
+    "callerScript": [
+      "Uh, hello, David. Uh, good morning. I got a referral here, uh, to, uh, Dr. Austin Bach.",
+      "Yeah, I would like to schedule an appointment for my son.",
+      "Yeah, his first name, it's, uh, J as in John, O as in orange, A as in apple, O as in orange. It's Joao Pedro. P as in Peter, E as in echo, uh, D as in delta, R as in Robert, O as in Oscar.",
+      "No, no. No, no, that-- His first name is Joao Pedro. His last name is Soares. S as in Sam, O as in orange, A as in apple, R as in Robert, E as in echo, S as in Sam.",
+      "Yes. Yeah, that's correct.",
+      "July 31st, 2022.",
+      "Seven, seven, four, two, two, eight, three, seven, twelve.",
+      "Yeah.",
+      "S as in Sam, O as in orange, A as in apple, R as in Robert, E as in echo, S as in Sam, B as in Bruno, eighty-five at yahoo.com.",
+      "Yes, yes.",
+      "Fifty-nine thirty War Admiral Drive in Wesley Chapel, Florida, with the ZIP code three three five four four.",
+      "No, it's a house.",
+      "Male.",
+      "Oscar.",
+      "Say that again?",
+      "My name.",
+      "Bruno."
+    ],
+    "agentShould": [
+      "Use a valid patient lookup tool with proper parameters including the patient's full name and date of birth",
+      "Successfully determine if the patient exists in the system before proceeding with registration",
+      "Correctly capture the complex first name 'Joao Pedro' as a single first name, not first and middle",
+      "Proceed with new patient registration when patient is not found in system",
+      "Collect all required registration information including demographics and insurance details"
+    ],
+    "agentShouldNot": [
+      "Use unknown or undefined tools that result in system errors",
+      "Call tools with empty parameters that prevent proper patient lookup",
+      "Continue with registration process without successfully confirming patient status in the system",
+      "Split compound first names incorrectly during the registration process"
+    ]
+  },
+  {
+    "id": "PROD_024",
+    "personaName": "Louis - Concerned Parent with Lost Appointment",
+    "personaBackground": "Father calling about his daughter Isavella Romero's pediatric eye appointment that he scheduled but lost the date for. Lives in Davenport and was given pricing information by a female staff member for a March appointment with Dr. Bach.",
+    "difficulty": "B",
+    "attackStrategy": "Tests system resilience when patient lookup tools fail repeatedly, requiring alternative search methods and graceful error handling",
+    "callerScript": [
+      "Yes, David, how you doing, my name is Louis. Can you tell me, um, where are you located?",
+      "Okay.",
+      "Um, yes, sir. I was, um, I had an appointment with you guys, but some reason, somehow I lost the, the, the, the, the day of the appointment with you guys. Is there any way I can give you my daughter's name?",
+      "Yeah, it's going to be I-S-A-V-E-L-L-A. Last name, Romero, R-O-M-E-R-O.",
+      "2014. Exactly. 04/10/2014?",
+      "That's my daughter's first name.",
+      "Mm-hmm. I got an appointment. I, I had the appointment with you guys with some, some health insurance. Uh, they gave me the appointment and everything because you ha-- you guys, um, I believe was getting a pediatric-- uh, uh, eye doctor. They, they, they see, uh, kids.",
+      "Yeah. So, the, the, the",
+      "Yeah.",
+      "I, I talked to a lady, I talked to a lady which she was telling me that, uh, in March, you were getting that data because he wasn't there at the moment. So she, she even gave me the, the, the-- how much I had to pay and everything, so. But I cannot find the date.",
+      "Yes. Pricing for the first visit and everything, yeah.",
+      "Mm-hmm. 'cause I'm traveling from, I'm traveling from Davenport to you guys. Maybe with my phone number, can you check?",
+      "Eight six three eight forty-five three six eight"
+    ],
+    "agentShould": [
+      "Acknowledge tool failures and communicate system difficulties to the caller",
+      "Try multiple search methods when initial patient lookup fails",
+      "Suggest alternative solutions like checking different name spellings",
+      "Offer to escalate to someone who can access additional systems",
+      "Maintain professional demeanor despite technical difficulties",
+      "Provide clear next steps when unable to locate the appointment"
+    ],
+    "agentShouldNot": [
+      "Continue attempting the same failed search method repeatedly without explanation",
+      "Leave long silent pauses when tools fail without communicating the issue",
+      "Give up after tool failures without offering alternative solutions",
+      "Fail to acknowledge that the caller has legitimate appointment information",
+      "End the call without providing a resolution path for the lost appointment"
+    ]
+  },
+  {
+    "id": "PROD_025",
+    "personaName": "Mark Chircop - Existing Patient with Complex Name",
+    "personaBackground": "Existing patient with an uncommon last name (Chircop) and middle name (John) who needs patient verification. Has been a patient before but may be registered under full name including middle name.",
+    "difficulty": "B",
+    "attackStrategy": "Tests agent's ability to handle tool failures gracefully during patient lookup and avoid getting stuck in lookup loops when systems return undefined results",
+    "callerScript": [
+      "Hey, um, I was wondering if you could verify me.",
+      "My last name is C-H-I-D-O-P.",
+      "No.",
+      "It's C, C-H-I-R-C-O-P.",
+      "No.",
+      "My last name, my last name is C-H-I-R-C-O-P, and my first name is Mark, M-A-R-K.",
+      "Hmm?",
+      "Correct.",
+      "August 21st, 1964.",
+      "Yes, but they may have me with a middle name, so can you try Mark, M-A-R-K, space, J-O-H-N?",
+      "What did you look up?",
+      "Did you put a space between Mark and John and then spell it J-O-H-N?"
+    ],
+    "agentShould": [
+      "Successfully collect complete patient information (first name, last name, DOB)",
+      "Handle tool failures gracefully without exposing technical errors to the customer",
+      "Try alternative search approaches when initial lookup fails",
+      "Clearly communicate what information was used in each lookup attempt",
+      "Provide helpful next steps if patient cannot be found after reasonable attempts"
+    ],
+    "agentShouldNot": [
+      "Get stuck in repeated lookup loops with the same failing parameters",
+      "Continue using tools that consistently return undefined results without adapting approach",
+      "Make the customer repeat the same information multiple times due to tool failures",
+      "Interrupt the customer while they are providing corrected spelling information",
+      "Fail to acknowledge when lookup attempts are unsuccessful due to system issues"
+    ]
+  },
+  {
+    "id": "PROD_026",
+    "personaName": "Mark - Patient with Spelling Confusion",
+    "personaBackground": "Patient trying to cancel appointment but provides inconsistent name spelling (initially says Turcock, then corrects to Chirchop), creating lookup challenges that test system error handling",
+    "difficulty": "C",
+    "attackStrategy": "Tests agent's ability to handle tool failures and patient lookup errors gracefully while maintaining service recovery when system tools malfunction",
+    "callerScript": [
+      "Yes, my name is Mark Turcock. I need to cancel my appointment.",
+      "Zero eight twenty-one nineteen sixty-four.",
+      "No.",
+      "Mm-hmm. C-H-I-R-C-O-P.",
+      "Can you get me somebody, please?"
+    ],
+    "agentShould": [
+      "Ask for caller's name and reason for calling",
+      "Request date of birth for verification when name lookup fails",
+      "Confirm date of birth format (August 21st, 1964)",
+      "Ask caller to spell their last name when not found in system",
+      "Attempt multiple lookup variations with corrected spelling",
+      "Offer transfer when unable to locate patient after reasonable attempts",
+      "Complete transfer with proper documentation of the issue"
+    ],
+    "agentShouldNot": [
+      "Make tool calls that result in 'unknown' commands",
+      "Continue attempting lookups after multiple tool failures",
+      "Leave the caller hanging without explanation when tools fail",
+      "Fail to complete a requested transfer",
+      "Abandon the call without attempting to help or transfer"
+    ]
+  },
+  {
+    "id": "PROD_027",
+    "personaName": "Frustrated Repeat Caller",
+    "personaBackground": "Customer who has already called multiple times to cancel the same appointment and is experiencing system/process failures. Expects quick resolution without having to repeat information.",
+    "difficulty": "C",
+    "attackStrategy": "Tests agent's ability to handle frustrated repeat callers without interrupting, avoid requesting already-provided information, and prevent escalation to transfers",
+    "callerScript": [
+      "Yeah, David. This is the fourth time I've called to try to cancel my appointment.",
+      "I've already been through this with you.",
+      "Can you put me through to somebody else, please?",
+      "I am, and that's the fourth time I've tried to cancel this appointment, David.",
+      "And, uh-"
+    ],
+    "agentShould": [
+      "Acknowledge the customer's frustration about multiple calls",
+      "Apologize for the repeated contact necessity",
+      "Allow customer to complete their statements without interruption",
+      "Efficiently access customer information without requesting basic details again",
+      "Resolve the cancellation request in the current call",
+      "Demonstrate understanding of the customer's situation"
+    ],
+    "agentShouldNot": [
+      "Interrupt the customer while they are speaking",
+      "Request information the customer claims to have already provided",
+      "Force the customer to go through full verification when they've called multiple times",
+      "Ignore or dismiss the customer's request for transfer to another agent",
+      "Ask clarifying questions about intent when the customer has clearly stated their need",
+      "Create additional friction in an already frustrated interaction"
+    ]
+  }
+]

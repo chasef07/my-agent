@@ -108,7 +108,6 @@ export function buildSystemPrompt(workspacePath: string): string {
     lines.push("");
     for (const skill of skills) {
       lines.push(`- **${skill.name}** — ${skill.description}`);
-      lines.push(`  Instructions: \`${skill.path}\``);
     }
     sections.push(lines.join("\n"));
   }
