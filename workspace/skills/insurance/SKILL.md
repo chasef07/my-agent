@@ -1,8 +1,12 @@
 ---
 name: insurance
-description: |
-  Insurance plans accepted at Spring Hill, which doctors take each,
-  disambiguation rules, and preauthorization requirements.
+description: >
+  Which insurance plans are accepted at Spring Hill, which doctors each plan
+  can see, and preauthorization requirements. Read this skill when a caller
+  asks if their insurance is accepted, when you need to determine provider
+  routing after verifying a patient, or when the caller mentions any insurance
+  plan by name. Contains disambiguation rules for ambiguous plan names like
+  Humana, Molina, Aetna EPO, and Blue Cross.
 ---
 
 # Insurance — Spring Hill

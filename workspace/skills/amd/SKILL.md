@@ -1,14 +1,17 @@
 ---
 name: amd
-description: |
-  Interact with AdvancedMD practice management APIs via CLI. Use when the user wants to
-  look up patients, check availability, create patients, view or cancel appointments,
-  or inspect AMD auth tokens.
+description: >
+  Verify patients, register new patients, check appointment availability, book
+  appointments, look up existing appointments, and cancel appointments using the
+  amd CLI. Read this skill BEFORE running any amd command — it contains the exact
+  command names, flags, and workflows. Use when a caller wants to schedule, confirm,
+  cancel, or reschedule, or when you need to look up a patient. Do not guess amd
+  command syntax — always read this skill first.
 ---
 
 # AdvancedMD CLI
 
-Installed at `/usr/local/bin/amd`. All output is JSON to stdout; logs to stderr. Use the bash tool to run commands.
+All output is JSON. Use the bash tool to run `amd` commands.
 
 ## Commands
 

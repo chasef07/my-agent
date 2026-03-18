@@ -45,7 +45,7 @@ function parseFrontmatter(content: string): { name: string; description: string 
   const descIdx = block.indexOf("description:");
   if (descIdx !== -1) {
     const afterDesc = block.slice(descIdx + "description:".length).trimStart();
-    if (afterDesc.startsWith("|")) {
+    if (afterDesc.startsWith("|") || afterDesc.startsWith(">")) {
       // Multiline: grab all lines indented with 2+ spaces
       const lines = afterDesc.slice(1).split("\n").slice(1); // skip the | line
       const indented: string[] = [];
@@ -104,7 +104,7 @@ export function buildSystemPrompt(workspacePath: string): string {
   const skills = discoverSkills(workspacePath);
   if (skills.length > 0) {
     const lines = ["# Available Skills", ""];
-    lines.push("Read a skill's instructions before you need it — for CLI tools, reference info, or practice knowledge. Use the bash tool to run CLI commands.");
+    lines.push("When a task matches a skill below, read its full instructions before acting. Never guess — the skill contains the exact syntax, rules, and workflows you need.");
     lines.push("");
     for (const skill of skills) {
       lines.push(`- **${skill.name}** — ${skill.description}`);

@@ -1,9 +1,12 @@
 ---
 name: knowledge-base
-description: |
-  Abita Eye Clinic practice info — location, hours, providers, services, insurance,
-  appointment expectations, and urgency triage. Read when a caller asks about the
-  practice or you need context to answer a non-scheduling question.
+description: >
+  Practice information for Abita Eye Clinic Spring Hill — address, hours of
+  operation, providers and their specialties, services offered, what to bring,
+  appointment expectations, and emergency triage for flashes and floaters.
+  Read this skill BEFORE answering any question about the practice, even if
+  you think you know the answer. Contains the only correct address, hours,
+  and provider list. Do not guess practice details from memory.
 ---
 
 # Knowledge Base: Abita Eye Clinic, Spring Hill
